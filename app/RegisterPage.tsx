@@ -285,14 +285,7 @@ export default function RegisterPage() {
             {/* HEADING */}
 
             <div className="mb-5 text-center">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.07] px-2.5 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-
-                <span className="text-[9px] font-semibold tracking-[1.3px] text-emerald-300">
-                  {isLogin ? "WELCOME BACK" : "JOIN VOTESPHERE"}
-                </span>
-              </div>
-
+       
               <h2 className="text-[25px] font-bold tracking-[-1px] sm:text-[27px]">
                 {isLogin ? (
                   <>
@@ -315,33 +308,6 @@ export default function RegisterPage() {
 
             {/* LOGIN / SIGNUP SWITCH */}
 
-            <div className="mb-4 grid grid-cols-2 rounded-xl border border-white/[0.06] bg-[#060b08] p-1">
-              <button
-                type="button"
-                onClick={() => changeMode("login")}
-                disabled={isLoading}
-                className={`cursor-pointer rounded-lg py-2 text-[11px] font-semibold transition-all duration-200 ${
-                  isLogin
-                    ? "border border-emerald-400/15 bg-[#14271d] text-emerald-300 shadow-[0_2px_12px_rgba(16,185,129,0.08)]"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                Login
-              </button>
-
-              <button
-                type="button"
-                onClick={() => changeMode("signup")}
-                disabled={isLoading}
-                className={`cursor-pointer rounded-lg py-2 text-[11px] font-semibold transition-all duration-200 ${
-                  !isLogin
-                    ? "border border-emerald-400/15 bg-[#14271d] text-emerald-300 shadow-[0_2px_12px_rgba(16,185,129,0.08)]"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                Sign Up
-              </button>
-            </div>
 
             {/* ERROR */}
 
