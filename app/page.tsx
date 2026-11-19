@@ -1,4 +1,3 @@
-  import AuthPage from './Register'
-  export default function App(){
-  return <AuthPage />
+  export default function page(){
+  return <p>THe</p>
   }
