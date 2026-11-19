@@ -58,12 +58,6 @@ export default function NoProject() {
           <div className="pointer-events-none absolute -bottom-28 -left-20 h-52 w-52 rounded-full bg-green-500/[0.06] blur-[85px]" />
 
           {/* Top label */}
-          <div className="relative mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.055] px-3 py-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/80">
-              Your workspace
-            </span>
-          </div>
 
           {/* Icon */}
           <div className="card-icon relative mx-auto mt-5 flex h-16 w-16 items-center justify-center rounded-[23px] border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.14] to-emerald-950/40 text-emerald-300 shadow-[inset_0_0_25px_rgba(52,211,153,0.08),0_0_35px_rgba(16,185,129,0.09)] sm:mt-7 sm:h-[76px] sm:w-[76px]">
@@ -85,19 +79,6 @@ export default function NoProject() {
           </p>
 
           {/* Feature details */}
-          <div className="relative mx-auto mt-4 flex max-w-[310px] items-center justify-center gap-3 border-y border-white/[0.06] py-3 sm:mt-6 sm:gap-5 sm:py-4">
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 sm:gap-2 sm:text-[11px]">
-              <Users size={14} className="shrink-0 text-emerald-400/80" />
-              <span>Bring people together</span>
-            </div>
-
-            <div className="h-4 w-px shrink-0 bg-white/10" />
-
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 sm:gap-2 sm:text-[11px]">
-              <ShieldCheck size={14} className="shrink-0 text-emerald-400/80" />
-              <span>Fair voting</span>
-            </div>
-          </div>
 
           {/* Button */}
           <button
@@ -105,7 +86,7 @@ export default function NoProject() {
             onClick={() => router.push("/home/starting")}
             title="Add a new vote"
             aria-label="Add a new vote"
-            className="group relative mx-auto mt-5 inline-flex h-11 w-full max-w-[230px] items-center justify-center gap-2 overflow-hidden rounded-xl bg-emerald-400 px-6 text-sm font-bold text-[#062116] shadow-[0_5px_25px_rgba(16,185,129,0.15)] transition duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_8px_35px_rgba(16,185,129,0.25)] active:translate-y-0 active:scale-[0.98] sm:mt-7 sm:h-12"
+            className="group cursor-pointer relative mx-auto mt-5 inline-flex h-11 w-full max-w-[230px] items-center justify-center gap-2 overflow-hidden rounded-xl bg-emerald-400 px-6 text-sm font-bold text-[#062116] shadow-[0_5px_25px_rgba(16,185,129,0.15)] transition duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_8px_35px_rgba(16,185,129,0.25)] active:translate-y-0 active:scale-[0.98] sm:mt-7 sm:h-12"
           >
             <Plus size={18} strokeWidth={2.5} />
             Create your first vote
