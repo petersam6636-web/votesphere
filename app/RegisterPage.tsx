@@ -61,29 +61,7 @@ export default function RegisterPage() {
   }, [router]);
 
   // Entrance animation.
-  useEffect(() => {
-    if (!containerRef.current || !cardRef.current) return;
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        cardRef.current,
-        {
-          opacity: 0,
-          y: 25,
-          scale: 0.97,
-        },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.8,
-          ease: "power3.out",
-        }
-      );
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
 
   const handleEmailAuth = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -249,33 +227,7 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          {/* Login / Signup toggle */}
-          <div className="mb-6 grid grid-cols-2 rounded-xl border border-white/10 bg-[#07150f] p-1">
-            <button
-              type="button"
-              onClick={() => changeMode("login")}
-              className={`cursor-pointer rounded-lg py-2.5 text-sm font-semibold transition-all ${
-                mode === "login"
-                  ? "bg-emerald-500 text-[#062016] shadow-lg shadow-emerald-950/30"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Login
-            </button>
-
-            <button
-              type="button"
-              onClick={() => changeMode("signup")}
-              className={`cursor-pointer rounded-lg py-2.5 text-sm font-semibold transition-all ${
-                mode === "signup"
-                  ? "bg-emerald-500 text-[#062016] shadow-lg shadow-emerald-950/30"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Register
-            </button>
-          </div>
-
+    
           {/* Authentication form */}
           <form onSubmit={handleEmailAuth} className="space-y-4">
             <div>

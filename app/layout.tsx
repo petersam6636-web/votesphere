@@ -18,10 +18,11 @@ export const metadata: Metadata = {
   icons: {
     icon: "/applogo.png",
   },
-    themeColor: "#000000",
-
 };
 
+export const viewport: Viewport = {
+  themeColor: "#000000",
+};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
