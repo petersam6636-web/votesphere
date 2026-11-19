@@ -59,12 +59,6 @@ export default function NoProject() {
           <div className="pointer-events-none absolute -bottom-28 -left-20 h-52 w-52 rounded-full bg-green-500/[0.06] blur-[85px]" />
 
           {/* Small top label */}
-          <div className="relative mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.055] px-3 py-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/80">
-              Your workspace
-            </span>
-          </div>
 
           {/* Icon */}
           <div className="relative mx-auto mt-7 flex h-[76px] w-[76px] items-center justify-center rounded-[25px] border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.14] to-emerald-950/40 text-emerald-300 shadow-[inset_0_0_25px_rgba(52,211,153,0.08),0_0_35px_rgba(16,185,129,0.09)]">
@@ -86,19 +80,6 @@ export default function NoProject() {
           </p>
 
           {/* Small feature details */}
-          <div className="relative mx-auto mt-6 flex max-w-[310px] items-center justify-center gap-5 border-y border-white/[0.06] py-4">
-            <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-              <Users size={14} className="text-emerald-400/80" />
-              <span>Bring people together</span>
-            </div>
-
-            <div className="h-4 w-px bg-white/10" />
-
-            <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-              <ShieldCheck size={14} className="text-emerald-400/80" />
-              <span>Fair voting</span>
-            </div>
-          </div>
 
           {/* Button */}
           <button

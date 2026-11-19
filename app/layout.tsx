@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ContextFile from "@/lib/ContextFile";
 
@@ -19,9 +19,7 @@ export const metadata: Metadata = {
   description: "Your votesphere application",
 };
 
-export const viewport: Viewport = {
-  themeColor: "#000000",
-};
+
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
