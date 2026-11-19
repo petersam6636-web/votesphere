@@ -1,4 +1,7 @@
 
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -12,6 +15,12 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase-client";
+
+type UserProfile = {
+  name: string;
+  email: string;
+};
 
 const stats = [
   { label: "Total elections", value: "00", icon: Vote, detail: "All your elections" },
@@ -26,6 +35,54 @@ const activities = [
 ];
 
 export default function HomePage() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileError, setProfileError] = useState("");
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadProfile = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (error) throw error;
+
+        if (data.user && isActive) {
+          const email = data.user.email ?? "";
+          const metadataName =
+            data.user.user_metadata?.full_name ??
+            data.user.user_metadata?.name ??
+            data.user.user_metadata?.display_name;
+
+          setProfile({
+            name:
+              typeof metadataName === "string" && metadataName.trim()
+                ? metadataName.trim()
+                : email.split("@")[0] || "VoteSphere user",
+            email,
+          });
+        }
+      } catch (error: unknown) {
+        if (isActive) {
+          setProfileError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load your account details."
+          );
+        }
+      } finally {
+        if (isActive) setProfileLoading(false);
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-7">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -52,6 +109,35 @@ export default function HomePage() {
           Create election
         </button>
       </header>
+
+      <section
+        aria-label="Signed-in account"
+        className="rounded-2xl border border-white/[0.07] bg-[#0d1310] px-5 py-4"
+      >
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
+          Signed-in account
+        </p>
+        {profileLoading ? (
+          <p role="status" className="mt-2 text-sm text-zinc-400">
+            Loading account details...
+          </p>
+        ) : profileError ? (
+          <p role="alert" className="mt-2 text-sm text-red-300">
+            {profileError}
+          </p>
+        ) : profile ? (
+          <div className="mt-2">
+            <p className="font-semibold text-zinc-100">{profile.name}</p>
+            <p className="mt-1 break-all text-sm text-zinc-400">
+              {profile.email || "No email address is available."}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-400">
+            No signed-in user was found.
+          </p>
+        )}
+      </section>
 
       <section className="relative overflow-hidden rounded-3xl border border-emerald-400/15 bg-gradient-to-br from-[#103323] via-[#0c1c14] to-[#0b110e] p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-emerald-400/10 blur-[90px]" />

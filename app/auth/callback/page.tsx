@@ -30,6 +30,17 @@ export default function AuthCallbackPage() {
           return;
         }
 
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        if (sessionData.session) {
+          router.replace("/home");
+          router.refresh();
+          return;
+        }
+
         if (!code) {
           setError(
             "The sign-in link is missing its authorization code. Please try again."
