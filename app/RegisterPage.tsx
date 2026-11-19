@@ -557,7 +557,6 @@ export default function RegisterPage() {
 
       {/* FLOATING BUBBLE ANIMATION */}
 
-      <style jsx></style>
     </main>
   );
 }
