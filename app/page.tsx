@@ -1,10 +1,9 @@
 
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Geist } from "next/font/google";
-import gsap from "gsap";
 import {
   ArrowRight,
   Eye,
@@ -33,10 +32,6 @@ type LoadingType = "email" | "google" | null;
 export default function RegisterPage() {
   const router = useRouter();
 
-  const pageRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLDivElement>(null);
-  const hasMounted = useRef(false);
-
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,60 +43,6 @@ export default function RegisterPage() {
 
   const isLogin = mode === "login";
   const isLoading = loading !== null;
-
-  // Initial animations
-  useEffect(() => {
-    if (!pageRef.current) return;
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        pageRef.current,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.5,
-          ease: "power2.out",
-        }
-      );
-
-      gsap.to(".floating-orb", {
-        y: -12,
-        duration: 3,
-        stagger: 0.5,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
-      });
-    }, pageRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  // Form transition
-  useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      return;
-    }
-
-    if (!formRef.current) return;
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        formRef.current,
-        { opacity: 0, y: 20 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.3,
-          ease: "power2.out",
-        }
-      );
-    }, formRef);
-
-    return () => ctx.revert();
-  }, [mode]);
 
   const switchMode = (newMode: AuthMode) => {
     if (isLoading || mode === newMode) return;
@@ -218,7 +159,6 @@ export default function RegisterPage() {
 
   return (
     <main
-      ref={pageRef}
       className={`${geist.className} relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#050a07] px-3 py-5 text-white selection:bg-emerald-500/30 sm:px-5`}
     >
       {/* BACKGROUND */}
@@ -247,7 +187,7 @@ export default function RegisterPage() {
           <section className="relative flex flex-col justify-center overflow-hidden px-5 py-8 sm:px-9 lg:px-10 xl:px-12">
             <div className="pointer-events-none absolute -right-16 top-10 h-40 w-40 rounded-full bg-emerald-500/[0.045] blur-3xl" />
 
-            <div ref={formRef} className="relative">
+            <div className="relative">
 
               {/* HEADING */}
 
@@ -280,12 +220,12 @@ export default function RegisterPage() {
 
               {/* MODE SWITCH */}
 
-              <div className="mb-4 grid grid-cols-2 rounded-xl border border-white/[0.06] bg-[#060b08] p-1">
+              <div className="mx-auto mb-4 grid w-full max-w-[360px] grid-cols-2 rounded-xl border border-white/[0.06] bg-[#060b08] p-1">
                 <button
                   type="button"
                   onClick={() => switchMode("login")}
                   disabled={isLoading}
-                  className={`cursor-pointer rounded-lg py-2 text-[12px] font-semibold transition ${
+                  className={`cursor-pointer rounded-lg py-2 text-[12px] font-semibold ${
                     isLogin
                       ? "border border-emerald-400/15 bg-[#14271d] text-emerald-300"
                       : "text-zinc-500 hover:text-zinc-300"
@@ -298,7 +238,7 @@ export default function RegisterPage() {
                   type="button"
                   onClick={() => switchMode("signup")}
                   disabled={isLoading}
-                  className={`cursor-pointer rounded-lg py-2 text-[12px] font-semibold transition ${
+                  className={`cursor-pointer rounded-lg py-2 text-[12px] font-semibold ${
                     !isLogin
                       ? "border border-emerald-400/15 bg-[#14271d] text-emerald-300"
                       : "text-zinc-500 hover:text-zinc-300"

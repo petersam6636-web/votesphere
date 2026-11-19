@@ -1,80 +1,172 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, AlertCircle } from "lucide-react";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+
   const hasStarted = useRef(false);
+
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (hasStarted.current) return;
+
     hasStarted.current = true;
 
-    void Promise.resolve()
-      .then(async () => {
+    const completeAuthentication = async () => {
+      try {
         const callbackUrl = new URL(window.location.href);
-        const errorDescription = callbackUrl.searchParams.get("error_description");
-        const errorCode = callbackUrl.searchParams.get("error_code");
+
         const code = callbackUrl.searchParams.get("code");
 
-        if (errorDescription || errorCode) {
-          setError(
-            errorDescription ??
-              `Authentication failed (${errorCode}). Please try again.`
+        const tokenHash =
+          callbackUrl.searchParams.get("token_hash");
+
+        const otpType =
+          callbackUrl.searchParams.get("type");
+
+        const errorDescription =
+          callbackUrl.searchParams.get("error_description");
+
+        const errorCode =
+          callbackUrl.searchParams.get("error_code");
+
+        const authError =
+          callbackUrl.searchParams.get("error");
+
+        // 1. Check for errors returned by Supabase or Google.
+
+        if (errorDescription || errorCode || authError) {
+          throw new Error(
+            errorDescription ||
+              errorCode ||
+              authError ||
+              "Authentication failed. Please try again."
           );
-          return;
         }
 
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
+        // 2. Exchange the Google OAuth authorization code.
 
-        if (sessionError) throw sessionError;
+        if (code) {
+          const { data, error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(code);
 
-        if (sessionData.session) {
+          if (exchangeError) {
+            throw exchangeError;
+          }
+
+          if (!data.session) {
+            throw new Error(
+              "Your authentication session could not be created. Please sign in again."
+            );
+          }
+
           router.replace("/home");
           router.refresh();
+
           return;
         }
 
-        if (!code) {
-          setError(
-            "The sign-in link is missing its authorization code. Please try again."
-          );
+        // 3. Support email confirmation links using token_hash.
+
+        if (tokenHash && otpType) {
+          const { data, error: otpError } =
+            await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: otpType as EmailOtpType,
+            });
+
+          if (otpError) {
+            throw otpError;
+          }
+
+          if (!data.session) {
+            throw new Error(
+              "Email verification succeeded, but no session was created. Please sign in."
+            );
+          }
+
+          router.replace("/home");
+          router.refresh();
+
           return;
         }
 
-        const { error: exchangeError } =
-          await supabase.auth.exchangeCodeForSession(code);
+        // 4. If there is no code, check whether a valid session
+        // already exists.
 
-        if (exchangeError) {
-          setError(exchangeError.message);
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        if (session) {
+          router.replace("/home");
+          router.refresh();
+
           return;
         }
 
-        router.replace("/home");
-        router.refresh();
-      })
-      .catch((exchangeError: unknown) => {
-        setError(
-          exchangeError instanceof Error
-            ? exchangeError.message
-            : "Unable to complete sign-in. Please try again."
+        throw new Error(
+          "Your authentication link is missing its code or has expired. Please return to login and try again."
         );
-      });
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unable to complete authentication. Please try again.";
+
+        // Clear a potentially stale local session.
+        // This does not call a custom Next.js backend.
+
+        await supabase.auth.signOut({
+          scope: "local",
+        }).catch(() => {
+          // Continue showing the original authentication error.
+        });
+
+        setError(message);
+      }
+    };
+
+    void completeAuthentication();
   }, [router]);
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#070b09] px-4 text-zinc-100">
       <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#0d1310] p-6 text-center">
+
         {error ? (
           <>
-            <h1 className="text-lg font-semibold">Sign-in couldn&apos;t be completed</h1>
-            <p className="mt-2 text-sm text-zinc-400">{error}</p>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-red-500/20 bg-red-500/10">
+              <AlertCircle
+                size={22}
+                className="text-red-400"
+              />
+            </div>
+
+            <h1 className="mt-4 text-lg font-semibold">
+              Sign-in couldn&apos;t be completed
+            </h1>
+
+            <p
+              role="alert"
+              className="mt-2 text-sm leading-6 text-zinc-400"
+            >
+              {error}
+            </p>
+
             <Link
               href="/"
               className="mt-5 inline-flex rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-[#062116] transition hover:bg-emerald-400"
@@ -88,12 +180,17 @@ export default function AuthCallbackPage() {
               aria-hidden="true"
               className="mx-auto h-7 w-7 animate-spin text-emerald-400"
             />
-            <h1 className="mt-4 text-lg font-semibold">Completing sign-in</h1>
+
+            <h1 className="mt-4 text-lg font-semibold">
+              Completing sign-in
+            </h1>
+
             <p className="mt-2 text-sm text-zinc-400">
               Please wait while we securely verify your account.
             </p>
           </>
         )}
+
       </div>
     </main>
   );
