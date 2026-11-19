@@ -16,7 +16,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
-import gsap from "gsap";
 
 type AuthMode = "login" | "signup";
 type LoadingType = "email" | "google" | null;
