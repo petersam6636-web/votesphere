@@ -40,6 +40,12 @@ export default function AuthCallbackPage() {
 
         const authError =
           callbackUrl.searchParams.get("error");
+        const requestedDestination =
+          callbackUrl.searchParams.get("next");
+        const destination =
+          requestedDestination === "/" || requestedDestination === "/home"
+            ? requestedDestination
+            : "/home";
 
         // 1. Check for errors returned by Supabase or Google.
 
@@ -68,7 +74,7 @@ export default function AuthCallbackPage() {
             );
           }
 
-          router.replace("/home");
+          router.replace(destination);
           router.refresh();
 
           return;
@@ -88,12 +94,12 @@ export default function AuthCallbackPage() {
           }
 
           if (!data.session) {
-            throw new Error(
-              "Email verification succeeded, but no session was created. Please sign in."
-            );
+            router.replace("/");
+            router.refresh();
+            return;
           }
 
-          router.replace("/home");
+          router.replace(destination);
           router.refresh();
 
           return;
@@ -112,7 +118,7 @@ export default function AuthCallbackPage() {
         }
 
         if (session) {
-          router.replace("/home");
+          router.replace(destination);
           router.refresh();
 
           return;

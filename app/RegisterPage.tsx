@@ -169,8 +169,7 @@ export default function RegisterPage() {
           email: cleanEmail,
           password,
           options: {
-            // Email confirmation returns to this page.
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
           },
         });
 

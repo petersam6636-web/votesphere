@@ -1,5 +1,6 @@
 
 import type { ReactNode } from "react";
+import AuthGuard from "@/components/AuthGuard";
 import DashboardShell from "@/components/navigation/DashboardShell";
 
 export default function HomeLayout({
@@ -7,5 +8,9 @@ export default function HomeLayout({
 }: {
   children: ReactNode;
 }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <AuthGuard>
+      <DashboardShell>{children}</DashboardShell>
+    </AuthGuard>
+  );
 }
