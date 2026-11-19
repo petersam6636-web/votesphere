@@ -53,10 +53,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       <main
         className={`min-h-dvh w-full transition-[padding] duration-300 ease-in-out ${
           position === "left"
-            ? "md:pl-[108px] md:pr-5"
+            ? "md:pl-[88px] md:pr-5"
             : position === "right"
-              ? "md:pl-5 md:pr-[108px]"
-              : "md:px-5 md:pb-[110px]"
+              ? "md:pl-5 md:pr-[88px]"
+              : "md:px-5 md:pb-[92px]"
         }`}
       >
         <div className="mx-auto min-h-dvh w-full max-w-[1600px] px-4 pb-24 pt-5 sm:px-6 md:px-0 md:pb-6 md:pt-6">

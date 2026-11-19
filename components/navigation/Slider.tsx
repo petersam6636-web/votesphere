@@ -9,7 +9,6 @@ import {
   Share2,
   History,
   Settings,
-  Vote,
 } from "lucide-react";
 
 import NavigationCustomizer, {
@@ -46,39 +45,17 @@ export default function Slider({
     <>
       {/* Desktop and tablet navigation */}
       <aside
-        className={`fixed z-50 hidden border-white/[0.08] bg-[#0b120e]/90 shadow-[0_10px_50px_rgba(0,0,0,0.35)] backdrop-blur-2xl transition-all duration-300 md:flex ${
+        className={`fixed z-50 hidden border border-white/[0.08] bg-[#0b120e]/90 shadow-[0_10px_50px_rgba(0,0,0,0.35)] backdrop-blur-2xl transition-all duration-300 md:flex ${
           vertical
-            ? `top-1/2 h-[min(610px,calc(100dvh-40px))] w-[76px] -translate-y-1/2 flex-col items-center rounded-[24px] border py-4 ${
-                position === "left" ? "left-4" : "right-4"
+            ? `top-1/2 w-[64px] -translate-y-1/2 flex-col items-center rounded-[20px] px-2 pb-2 pt-11 ${
+                position === "left" ? "left-3" : "right-3"
               }`
-            : "bottom-5 left-1/2 h-[76px] w-auto -translate-x-1/2 items-center rounded-[24px] border px-4 py-2"
+            : "bottom-4 left-1/2 h-[64px] w-auto -translate-x-1/2 items-center rounded-[20px] py-2 pl-2 pr-12"
         }`}
       >
-        <Link
-          href="/home"
-          aria-label="VoteSphere home"
-          className={`flex shrink-0 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 shadow-[0_0_25px_rgba(16,185,129,0.10)] ${
-            vertical ? "h-11 w-11" : "mr-3 h-11 w-11"
-          }`}
-        >
-          <Vote size={23} strokeWidth={1.8} />
-        </Link>
-
-        <div
-          className={`flex ${
-            vertical
-              ? "my-5 h-px w-9 bg-white/[0.08]"
-              : "mx-3 h-9 w-px bg-white/[0.08]"
-          }`}
-        />
-
         <nav
           aria-label="Main navigation"
-          className={`flex ${
-            vertical
-              ? "flex-1 flex-col items-center gap-2"
-              : "items-center gap-2"
-          }`}
+          className={`flex ${vertical ? "flex-col items-center gap-1" : "items-center gap-1"}`}
         >
           {navigation.map(({ label, href, icon: Icon }) => {
             const active = isActive(href);
@@ -90,14 +67,14 @@ export default function Slider({
                 title={label}
                 aria-label={label}
                 aria-current={active ? "page" : undefined}
-                className={`group relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 ${
+                className={`group relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 ${
                   active
                     ? "bg-emerald-400/15 text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.17),0_0_20px_rgba(16,185,129,0.08)]"
                     : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100"
                 }`}
               >
                 {active && vertical && (
-                  <span className="absolute -left-[13px] h-5 w-[3px] rounded-r-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
+                  <span className="absolute -left-[10px] h-5 w-[3px] rounded-r-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
                 )}
 
                 <Icon size={19} strokeWidth={active ? 2.2 : 1.8} />
@@ -109,14 +86,6 @@ export default function Slider({
             );
           })}
         </nav>
-
-        <div
-          className={`flex ${
-            vertical
-              ? "my-4 h-px w-9 bg-white/[0.08]"
-              : "mx-3 h-9 w-px bg-white/[0.08]"
-          }`}
-        />
 
         <NavigationCustomizer
           position={position}
@@ -138,7 +107,7 @@ export default function Slider({
               href={href}
               aria-label={label}
               aria-current={active ? "page" : undefined}
-              className={`flex h-11 w-12 items-center justify-center rounded-xl transition-all ${
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
                 active
                   ? "bg-emerald-400/15 text-emerald-300"
                   : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"

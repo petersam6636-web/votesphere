@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Easeway",
-  description: "Your Easeway application",
+  title: "votesphere",
+  description: "Your votesphere application",
   icons: {
-    icon: "/icon.png",
+    icon: "/applogo.png",
   },
 };
 
