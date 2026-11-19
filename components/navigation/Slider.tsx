@@ -40,6 +40,12 @@ export default function Slider({
   };
 
   const vertical = position !== "bottom";
+  const tooltipPosition =
+    position === "left"
+      ? "left-full top-1/2 ml-3 -translate-y-1/2"
+      : position === "right"
+        ? "right-full top-1/2 mr-3 -translate-y-1/2"
+        : "bottom-full left-1/2 mb-3 -translate-x-1/2";
 
   return (
     <>
@@ -79,13 +85,24 @@ export default function Slider({
 
                 <Icon size={19} strokeWidth={active ? 2.2 : 1.8} />
 
-                <span className="pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-lg border border-white/10 bg-[#111b15] px-2.5 py-1.5 text-[10px] font-medium text-white opacity-0 shadow-xl transition-all group-hover:block group-hover:opacity-100">
+                <span
+                  className={`pointer-events-none absolute z-[60] hidden whitespace-nowrap rounded-lg border border-white/10 bg-[#111b15] px-2.5 py-1.5 text-[10px] font-medium text-white opacity-0 shadow-xl transition-all group-hover:block group-hover:opacity-100 ${tooltipPosition}`}
+                >
                   {label}
                 </span>
               </Link>
             );
           })}
         </nav>
+
+        <span
+          aria-hidden="true"
+          className={
+            vertical
+              ? "absolute left-1/2 top-9 h-px w-8 -translate-x-1/2 bg-white/[0.08]"
+              : "absolute right-10 top-1/2 h-8 w-px -translate-y-1/2 bg-white/[0.08]"
+          }
+        />
 
         <NavigationCustomizer
           position={position}

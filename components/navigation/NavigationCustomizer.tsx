@@ -60,9 +60,16 @@ export default function NavigationCustomizer({
       : position === "right"
         ? "right-full top-0 mr-3"
         : "";
+  const controlPosition =
+    position === "bottom"
+      ? "right-2 top-1/2 -translate-y-1/2"
+      : "left-1/2 top-2 -translate-x-1/2";
 
   return (
-    <div ref={panelRef} className="absolute right-2 top-0 z-[100] hidden md:block">
+    <div
+      ref={panelRef}
+      className={`absolute z-[100] hidden md:block ${controlPosition}`}
+    >
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
