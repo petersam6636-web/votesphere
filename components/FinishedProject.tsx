@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from "react";
@@ -18,8 +17,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-import useApp  from "@/lib/useApp";
+import useApp from "@/lib/useApp";
 import type { Project } from "@/types/project";
+
+const ELECTION_START_KEY = "votesphere_election_start_time";
 
 type ActivityNominee = {
   id?: string;
@@ -125,15 +126,12 @@ export default function FinishedProject() {
       ? new Date(selectedProject.created_at).getTime()
       : Number.NaN;
 
-    // duration_ms stores the absolute expiration timestamp.
-    // Actual election duration = expiration timestamp - creation timestamp.
-    const expirationTimestamp = Number(selectedProject.duration_ms);
+    // duration_ms stores the selected election duration in milliseconds.
+    const durationValue = Number(selectedProject.duration_ms);
 
     const duration =
-      Number.isFinite(createdAt) &&
-      Number.isFinite(expirationTimestamp) &&
-      expirationTimestamp > createdAt
-        ? expirationTimestamp - createdAt
+      Number.isFinite(durationValue) && durationValue > 0
+        ? durationValue
         : null;
 
     const totalVotes = nomineeResults.reduce(
@@ -152,6 +150,7 @@ export default function FinishedProject() {
   }, [project]);
 
   const handleCreateProject = () => {
+    localStorage.setItem(ELECTION_START_KEY, String(Date.now()));
     router.push("/home/starting");
   };
 

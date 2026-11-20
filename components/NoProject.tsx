@@ -1,11 +1,17 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
 import { Plus, Vote, Sparkles, Users, ShieldCheck } from "lucide-react";
 
+const ELECTION_START_KEY = "votesphere_election_start_time";
+
 export default function NoProject() {
   const router = useRouter();
+
+  const handleCreateProject = () => {
+    localStorage.setItem(ELECTION_START_KEY, String(Date.now()));
+    router.push("/home/starting");
+  };
 
   return (
     <main className="page-shell relative isolate flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#050a07] px-3 py-4 sm:px-4 sm:py-8">
@@ -83,7 +89,7 @@ export default function NoProject() {
           {/* Button */}
           <button
             type="button"
-            onClick={() => router.push("/home/starting")}
+            onClick={handleCreateProject}
             title="Add a new vote"
             aria-label="Add a new vote"
             className="group cursor-pointer relative mx-auto mt-5 inline-flex h-11 w-full max-w-[230px] items-center justify-center gap-2 overflow-hidden rounded-xl bg-emerald-400 px-6 text-sm font-bold text-[#062116] shadow-[0_5px_25px_rgba(16,185,129,0.15)] transition duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_8px_35px_rgba(16,185,129,0.25)] active:translate-y-0 active:scale-[0.98] sm:mt-7 sm:h-12"

@@ -29,6 +29,8 @@ import ProjectLoading from "@/components/ProjectLoading";
 
 import type { Project } from "@/types/project";
 
+const ELECTION_START_KEY = "votesphere_election_start_time";
+
 type TimeLeft = {
   days: number;
   hours: number;
@@ -99,6 +101,9 @@ export default function ActiveProject() {
 
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
+  const [electionStartTime, setElectionStartTime] = useState<number | null>(
+    null
+  );
 
   const [loading, setLoading] = useState(true);
   const [ending, setEnding] = useState(false);
@@ -153,30 +158,52 @@ export default function ActiveProject() {
 
         const selectedProject = data as Project;
 
-        // duration_ms stores the absolute expiration timestamp.
-        const expirationTime = Number(selectedProject.duration_ms);
+        // duration_ms stores the selected election duration in milliseconds.
+        const duration = Number(selectedProject.duration_ms);
+
+        if (!Number.isFinite(duration) || duration <= 0) {
+          throw new Error(
+            "The saved election duration is invalid."
+          );
+        }
 
         const createdAt = new Date(
           selectedProject.created_at
         ).getTime();
 
-        if (
-          !Number.isFinite(expirationTime) ||
-          !Number.isFinite(createdAt) ||
-          expirationTime < createdAt
-        ) {
+        if (!Number.isFinite(createdAt)) {
           throw new Error(
-            "The saved election expiration time or creation date is invalid."
+            "The saved election creation date is invalid."
+          );
+        }
+
+        // Read the original timestamp saved when the user clicked
+        // the create-project button.
+        const savedStartTime = localStorage.getItem(
+          ELECTION_START_KEY
+        );
+
+        let startTime = savedStartTime
+          ? Number(savedStartTime)
+          : Number.NaN;
+
+        // For projects created before this feature, use created_at
+        // as a fallback and save it for subsequent page visits.
+        if (!Number.isFinite(startTime) || startTime <= 0) {
+          startTime = createdAt;
+
+          localStorage.setItem(
+            ELECTION_START_KEY,
+            String(startTime)
           );
         }
 
         if (!active) return;
 
-        const remainingTime = Math.max(
-          0,
-          expirationTime - Date.now()
-        );
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, duration - elapsedTime);
 
+        setElectionStartTime(startTime);
         setRemainingMs(remainingTime);
         setActiveProject(selectedProject);
 
@@ -225,6 +252,10 @@ export default function ActiveProject() {
         throw updateError;
       }
 
+      // Remove the saved start timestamp after the election
+      // has been successfully deactivated.
+      localStorage.removeItem(ELECTION_START_KEY);
+
       // Update shared state immediately.
       // HomePage can now render FinishedProject.
       setTaskKey(false);
@@ -255,15 +286,21 @@ export default function ActiveProject() {
   // --------------------------------------------------
 
   useEffect(() => {
-    if (!activeProject || endingRef.current) return;
+    if (
+      !activeProject ||
+      electionStartTime === null ||
+      endingRef.current
+    ) {
+      return;
+    }
 
-    const expirationTime = Number(activeProject.duration_ms);
+    const duration = Number(activeProject.duration_ms);
 
     const updateCountdown = () => {
-      const remaining = Math.max(
-        0,
-        expirationTime - Date.now()
-      );
+      // Calculate the remaining time using the original saved
+      // start time, not the time the page was refreshed.
+      const elapsedTime = Date.now() - electionStartTime;
+      const remaining = Math.max(0, duration - elapsedTime);
 
       setRemainingMs(remaining);
 
@@ -283,7 +320,7 @@ export default function ActiveProject() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [activeProject, endElection]);
+  }, [activeProject, electionStartTime, endElection]);
 
   // --------------------------------------------------
   // CLOSE CONFIRMATION WITH ESCAPE KEY
@@ -365,17 +402,18 @@ export default function ActiveProject() {
     0
   );
 
-  const expirationTime = Number(activeProject.duration_ms);
-  const createdAt = new Date(activeProject.created_at).getTime();
+  const duration = Number(activeProject.duration_ms);
 
-  const totalDuration = expirationTime - createdAt;
-  const elapsedTime = Date.now() - createdAt;
+  const elapsedTime =
+    electionStartTime !== null
+      ? Date.now() - electionStartTime
+      : 0;
 
   const progress =
-    totalDuration > 0
+    duration > 0
       ? Math.min(
           100,
-          Math.max(0, (elapsedTime / totalDuration) * 100)
+          Math.max(0, (elapsedTime / duration) * 100)
         )
       : 100;
 
