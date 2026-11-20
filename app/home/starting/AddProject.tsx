@@ -50,12 +50,6 @@ const durationPresets: DurationPreset[] = [
     value: 1,
     unit: "days",
   },
-  {
-    label: "3 days",
-    description: "Popular choice",
-    value: 3,
-    unit: "days",
-  },
 ];
 
 export default function CreateProjectPage() {
@@ -77,7 +71,7 @@ export default function CreateProjectPage() {
     "preset"
   );
 
-  const [selectedPreset, setSelectedPreset] = useState("3 days");
+  const [selectedPreset, setSelectedPreset] = useState("1 hour");
 
   const [duration, setDuration] = useState("3");
   const [unit, setUnit] = useState<DurationUnit>("days");
@@ -241,19 +235,38 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-3 text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#07110c] px-4 py-5 text-white">
 
-      {/* Ambient emerald background */}
-      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-emerald-500/10 blur-[120px]" />
+      {/* Static decorative glass bubbles */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 overflow-hidden">
 
-      <div className="pointer-events-none absolute -bottom-40 -right-20 h-96 w-96 rounded-full bg-green-500/10 blur-[130px]" />
+        {/* Large bottom-left bubble */}
+        <div className="absolute -bottom-20 left-[8%] h-48 w-48 rounded-full border border-emerald-300/20 bg-gradient-to-br from-emerald-300/[0.10] via-emerald-500/[0.04] to-transparent shadow-[inset_0_0_35px_rgba(52,211,153,0.08)]" />
 
-      <div className="relative mx-auto flex min-h-[80vh] max-w-2xl items-center justify-center">
+        {/* Medium left bubble */}
+        <div className="absolute bottom-12 left-[24%] h-16 w-16 rounded-full border border-emerald-300/20 bg-emerald-300/[0.06] shadow-[inset_0_0_20px_rgba(52,211,153,0.12)]" />
+
+        {/* Small center bubble */}
+        <div className="absolute bottom-6 left-[45%] h-9 w-9 rounded-full border border-emerald-300/25 bg-emerald-300/[0.07]" />
+
+        {/* Large right bubble */}
+        <div className="absolute -bottom-24 right-[12%] h-56 w-56 rounded-full border border-emerald-300/20 bg-gradient-to-br from-emerald-300/[0.09] via-emerald-500/[0.03] to-transparent shadow-[inset_0_0_40px_rgba(52,211,153,0.08)]" />
+
+        {/* Medium right bubble */}
+        <div className="absolute bottom-16 right-[28%] h-20 w-20 rounded-full border border-emerald-300/20 bg-emerald-300/[0.05]" />
+
+        {/* Small far-right bubble */}
+        <div className="absolute bottom-8 right-[5%] h-7 w-7 rounded-full border border-emerald-300/25 bg-emerald-300/[0.08]" />
+
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 mx-auto flex min-h-[80vh] max-w-2xl items-center justify-center">
 
         {/* Main Card */}
         <form
           onSubmit={handleCreateProject}
-          className="w-full max-w-xl rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 shadow-[0_0_60px_rgba(16,185,129,0.06)] backdrop-blur-xl sm:p-6"
+          className="w-full max-w-xl rounded-2xl border border-emerald-400/15 bg-[#0b1913]/95 p-5 shadow-[0_0_45px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-6"
         >
 
           {/* Header */}
@@ -329,7 +342,7 @@ export default function CreateProjectPage() {
               </div>
 
               {/* Duration Presets */}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {durationPresets.map((preset) => {
                   const selected =
                     durationMode === "preset" &&
@@ -349,33 +362,35 @@ export default function CreateProjectPage() {
                           : "border-emerald-400/15 bg-black/20 hover:border-emerald-400/40"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-white">
-                          {preset.label}
-                        </span>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-white">
+                            {preset.label}
+                          </span>
 
-                        <span
-                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
-                            selected
-                              ? "border-emerald-400"
-                              : "border-white/30"
-                          }`}
-                        >
-                          {selected && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          )}
-                        </span>
+                          <span
+                            className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
+                              selected
+                                ? "border-emerald-400"
+                                : "border-white/30"
+                            }`}
+                          >
+                            {selected && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            )}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] leading-4 text-white/40">
+                          {preset.description}
+                        </p>
+
+                        {preset.label === "1 hour" && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400">
+                            Popular choice
+                          </span>
+                        )}
                       </div>
-
-                      <p className="mt-1.5 text-[10px] leading-4 text-white/40">
-                        {preset.description}
-                      </p>
-
-                      {preset.label === "3 days" && (
-                        <span className="mt-1.5 inline-block text-[9px] font-semibold uppercase tracking-wider text-emerald-400">
-                          Popular choice
-                        </span>
-                      )}
                     </button>
                   );
                 })}
