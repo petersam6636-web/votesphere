@@ -2,15 +2,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import {
-  Clock3,
   Vote,
   Users,
   UserRound,
   MessageSquare,
   Trophy,
   ShieldCheck,
-  Hourglass,
   CalendarDays,
   Flag,
   Loader2,
@@ -18,6 +17,7 @@ import {
   CheckCircle2,
   Timer,
   Zap,
+  Hourglass,
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase-client";
@@ -69,7 +69,13 @@ function pad(value: number) {
 }
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Date unavailable";
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -79,7 +85,6 @@ function formatDate(date: string) {
 export default function ActiveProject() {
   const {
     userInfo,
-    project,
     setProject,
     setTaskKey,
   } = useApp();
@@ -91,11 +96,18 @@ export default function ActiveProject() {
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState("");
 
+  // Prevent multiple automatic or manual ending requests.
   const endingRef = useRef(false);
 
-  // Get the earliest project belonging to the authenticated user.
+  // --------------------------------------------------
+  // LOAD THE USER'S EARLIEST ACTIVE PROJECT
+  // --------------------------------------------------
+
   useEffect(() => {
-    if (!userInfo) return;
+    if (!userInfo) {
+      setLoading(false);
+      return;
+    }
 
     let active = true;
 
@@ -104,79 +116,65 @@ export default function ActiveProject() {
       setError("");
 
       try {
-        // Find the earliest project already available in shared state.
-        const cachedProject = [...(project ?? [])]
-          .filter((item) => item.user_id === userInfo && !item.deleted)
-          .sort(
-            (a, b) =>
-              new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime()
-          )[0];
-
-        // Check whether the cached project already contains voters.
-        const hasCompleteData =
-          cachedProject &&
-          Array.isArray(cachedProject.nominees) &&
-          cachedProject.nominees.every(
-            (nominee) => Array.isArray(nominee.voters)
-          );
-
-        let selectedProject: Project;
-
-        if (hasCompleteData) {
-          // Reuse the complete project from shared state.
-          selectedProject = cachedProject;
-        } else {
-          // Fetch the earliest project and its related records.
-          const { data, error: fetchError } = await supabase
-            .from("projects")
-            .select(`
+        const { data, error: fetchError } = await supabase
+          .from("projects")
+          .select(`
+            *,
+            nominees (
               *,
-              nominees (
-                *,
-                achievements (*),
-                voters (*)
-              )
-            `)
-            .eq("user_id", userInfo)
-            .eq("deleted", false)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
+              achievements (*),
+              voters (*)
+            )
+          `)
+          .eq("user_id", userInfo)
+          .eq("deleted", false)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
 
-          if (fetchError) throw fetchError;
+        if (fetchError) {
+          throw fetchError;
+        }
 
-          if (!data) {
-            throw new Error("No active election project was found.");
-          }
+        if (!data) {
+          throw new Error("No active election project was found.");
+        }
 
-          selectedProject = data as Project;
+        const selectedProject = data as Project;
 
-          // Save the fetched project in shared state.
-          const updatedProjects = [
-            ...(project ?? []).filter(
-              (item) => item.id !== selectedProject.id
-            ),
-            selectedProject,
-          ].sort(
-            (a, b) =>
-              new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime()
+        // Validate the original saved duration and creation date.
+        const savedDuration = Number(selectedProject.duration_ms);
+
+        const createdAt = new Date(
+          selectedProject.created_at
+        ).getTime();
+
+        if (
+          !Number.isFinite(savedDuration) ||
+          !Number.isFinite(createdAt) ||
+          savedDuration < 0
+        ) {
+          throw new Error(
+            "The saved election duration or creation date is invalid."
           );
-
-          setProject(updatedProjects);
         }
 
         if (!active) return;
 
+        // Calculate the actual remaining time.
+        // Remaining = Saved duration - Time already elapsed.
+        const elapsedTime = Date.now() - createdAt;
+
+        const remainingTime = Math.max(
+          0,
+          savedDuration - elapsedTime
+        );
+
+        setRemainingMs(remainingTime);
         setActiveProject(selectedProject);
 
-        // Calculate the remaining time from the original creation date.
-        const expiryTime =
-          new Date(selectedProject.created_at).getTime() +
-          selectedProject.duration_ms;
-
-        setRemainingMs(Math.max(0, expiryTime - Date.now()));
+        // Save the fetched project and its nested data in shared state.
+        setProject([selectedProject]);
       } catch (err: unknown) {
         if (!active) return;
 
@@ -186,7 +184,9 @@ export default function ActiveProject() {
             : "Unable to load your election."
         );
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -195,9 +195,12 @@ export default function ActiveProject() {
     return () => {
       active = false;
     };
-  }, [userInfo, project, setProject]);
+  }, [userInfo, setProject]);
 
-  // End the election and update both Supabase and shared state.
+  // --------------------------------------------------
+  // END ELECTION
+  // --------------------------------------------------
+
   const endElection = useCallback(async () => {
     if (!userInfo || endingRef.current) return;
 
@@ -211,9 +214,12 @@ export default function ActiveProject() {
         .update({ key: false })
         .eq("user_id", userInfo);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        throw updateError;
+      }
 
-      // Update the global state so HomePage renders FinishedProject.
+      // Update shared state immediately.
+      // HomePage can now render FinishedProject.
       setTaskKey(false);
     } catch (err: unknown) {
       endingRef.current = false;
@@ -228,16 +234,29 @@ export default function ActiveProject() {
     }
   }, [userInfo, setTaskKey]);
 
-  // Update the countdown every second.
+  // --------------------------------------------------
+  // LIVE COUNTDOWN
+  // --------------------------------------------------
+
   useEffect(() => {
     if (!activeProject || endingRef.current) return;
 
-    const expiryTime =
-      new Date(activeProject.created_at).getTime() +
-      activeProject.duration_ms;
+    const savedDuration = Number(activeProject.duration_ms);
+
+    const createdAt = new Date(
+      activeProject.created_at
+    ).getTime();
+
+    // The original expiry timestamp never changes.
+    const expiryTime = createdAt + savedDuration;
 
     const updateCountdown = () => {
-      const remaining = Math.max(0, expiryTime - Date.now());
+      // Recalculate from the original timestamps every second.
+      // This avoids losing time or restarting after a refresh.
+      const remaining = Math.max(
+        0,
+        expiryTime - Date.now()
+      );
 
       setRemainingMs(remaining);
 
@@ -248,36 +267,72 @@ export default function ActiveProject() {
 
     updateCountdown();
 
-    const interval = setInterval(updateCountdown, 1000);
+    const interval = window.setInterval(
+      updateCountdown,
+      1000
+    );
 
-    return () => clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+    };
   }, [activeProject, endElection]);
 
-  // Loading screen.
+  // --------------------------------------------------
+  // LOADING SCREEN
+  // --------------------------------------------------
+
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10">
-            <Loader2 className="animate-spin text-emerald-400" size={25} />
+      <div className="flex min-h-[60vh] w-full items-center justify-center px-4">
+        <div className="flex w-full max-w-sm flex-col items-center rounded-3xl border border-emerald-400/10 bg-[#0d1510] px-8 py-12 text-center">
+          <div className="relative flex h-16 w-16 items-center justify-center">
+            <div className="absolute inset-0 animate-ping rounded-2xl border border-emerald-400/20 opacity-40" />
+
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08]">
+              <Loader2
+                className="animate-spin text-emerald-400"
+                size={26}
+              />
+            </div>
           </div>
 
-          <p className="text-sm font-medium text-zinc-400">
-            Preparing your election dashboard...
+          <h2 className="mt-6 text-base font-semibold text-white">
+            Preparing your election dashboard
+          </h2>
+
+          <p className="mt-2 text-xs leading-6 text-zinc-500">
+            Fetching your election details and preparing your live
+            voting activity.
           </p>
+
+          <div className="mt-6 h-1 w-40 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-400" />
+          </div>
         </div>
       </div>
     );
   }
 
-  // Error screen.
+  // --------------------------------------------------
+  // ERROR SCREEN
+  // --------------------------------------------------
+
   if (error && !activeProject) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <AlertCircle className="mx-auto mb-4 text-red-400" size={30} />
+        <div className="w-full max-w-md rounded-3xl border border-red-500/15 bg-[#170f0f] p-7 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+            <AlertCircle className="text-red-400" size={23} />
+          </div>
 
-          <p role="alert" className="text-sm text-red-300">
+          <h2 className="mt-4 text-base font-semibold text-white">
+            Unable to load election
+          </h2>
+
+          <p
+            role="alert"
+            className="mt-2 text-sm leading-6 text-red-300/80"
+          >
             {error}
           </p>
         </div>
@@ -287,31 +342,70 @@ export default function ActiveProject() {
 
   if (!activeProject) return null;
 
+  // --------------------------------------------------
+  // DASHBOARD DATA
+  // --------------------------------------------------
+
   const time = calculateTimeLeft(remainingMs);
+
   const isUrgent = remainingMs <= 10_000;
+  const isExpired = remainingMs <= 0;
+
   const nominees = activeProject.nominees ?? [];
 
   const totalVoters = nominees.reduce(
-    (total, nominee) => total + (nominee.voters?.length ?? 0),
+    (total, nominee) =>
+      total + (nominee.voters?.length ?? 0),
     0
   );
 
   const totalAchievements = nominees.reduce(
-    (total, nominee) => total + (nominee.achievements?.length ?? 0),
+    (total, nominee) =>
+      total + (nominee.achievements?.length ?? 0),
     0
   );
 
+  const savedDuration = Math.max(
+    0,
+    Number(activeProject.duration_ms) || 0
+  );
+
+  const elapsedTime = Math.max(
+    0,
+    Date.now() -
+      new Date(activeProject.created_at).getTime()
+  );
+
+  const progress =
+    savedDuration > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            (elapsedTime / savedDuration) * 100
+          )
+        )
+      : 100;
+
   const timeUnits = [
-    { label: "Years", value: time.years },
+    ...(time.years > 0
+      ? [{ label: "Years", value: time.years }]
+      : []),
     { label: "Days", value: time.days },
     { label: "Hours", value: time.hours },
     { label: "Minutes", value: time.minutes },
     { label: "Seconds", value: time.seconds },
   ];
 
+  // --------------------------------------------------
+  // DASHBOARD UI
+  // --------------------------------------------------
+
   return (
     <div className="w-full space-y-6 pb-8">
-      {/* Election heading */}
+
+      {/* ELECTION HEADER */}
+
       <section className="relative overflow-hidden rounded-3xl border border-emerald-400/15 bg-gradient-to-br from-[#103323] via-[#0c1c14] to-[#0b110e] p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-emerald-400/[0.09] blur-[90px]" />
 
@@ -342,51 +436,69 @@ export default function ActiveProject() {
 
           <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-zinc-500">
             <div className="flex items-center gap-2">
-              <CalendarDays size={15} className="text-emerald-400" />
+              <CalendarDays
+                size={15}
+                className="text-emerald-400"
+              />
               Started {formatDate(activeProject.created_at)}
             </div>
 
             <div className="flex items-center gap-2">
-              <Users size={15} className="text-emerald-400" />
+              <Users
+                size={15}
+                className="text-emerald-400"
+              />
               {nominees.length} nominees
             </div>
           </div>
         </div>
       </section>
 
-      {/* Countdown */}
+      {/* COUNTDOWN CARD */}
+
       <section
-        className={`relative overflow-hidden rounded-3xl border p-5 transition-colors duration-500 sm:p-7 ${
+        className={`relative overflow-hidden rounded-3xl border p-5 transition-colors duration-500 sm:p-8 ${
           isUrgent
             ? "border-red-500/30 bg-gradient-to-br from-[#351414] via-[#1c1111] to-[#100d0d]"
             : "border-emerald-400/15 bg-gradient-to-br from-[#10251b] via-[#101914] to-[#0c110e]"
         }`}
       >
         <div
-          className={`pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full blur-[80px] transition-colors duration-500 ${
-            isUrgent ? "bg-red-500/15" : "bg-emerald-400/[0.08]"
+          className={`pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full blur-[90px] ${
+            isUrgent
+              ? "bg-red-500/15"
+              : "bg-emerald-400/[0.08]"
           }`}
         />
 
         <div className="relative">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+
+          {/* Countdown heading */}
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div
-                className={`flex items-center gap-2 text-xs font-semibold tracking-widest ${
-                  isUrgent ? "text-red-400" : "text-emerald-400"
+                className={`flex items-center gap-2 text-xs font-bold tracking-[0.18em] ${
+                  isUrgent
+                    ? "text-red-400"
+                    : "text-emerald-400"
                 }`}
               >
-                <Timer size={16} />
+                <Timer size={17} />
                 ELECTION COUNTDOWN
               </div>
 
-              <p className="mt-2 text-xs text-zinc-500">
-                Time remaining before this election automatically ends
+              <h2 className="mt-2 text-lg font-semibold text-white sm:text-xl">
+                Time remaining
+              </h2>
+
+              <p className="mt-1 text-xs text-zinc-500">
+                Your election ends automatically when the timer reaches zero.
               </p>
             </div>
 
             <div
-              className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold tracking-wider ${
+              className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[10px] font-bold tracking-wider ${
                 isUrgent
                   ? "border-red-500/25 bg-red-500/10 text-red-400"
                   : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
@@ -394,80 +506,131 @@ export default function ActiveProject() {
             >
               {isUrgent ? (
                 <>
-                  <Zap size={12} />
+                  <Zap size={13} />
                   ENDING SOON
                 </>
               ) : (
                 <>
-                  <Hourglass size={12} />
-                  TIME REMAINING
+                  <Hourglass size={13} />
+                  COUNTING DOWN
                 </>
               )}
             </div>
           </div>
 
-          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
-            {timeUnits.map((unit) => (
-              <div
-                key={unit.label}
-                className={`rounded-2xl border p-4 text-center transition-colors duration-500 sm:p-5 ${
-                  isUrgent
-                    ? "border-red-500/20 bg-red-500/[0.07]"
-                    : "border-emerald-400/10 bg-black/20"
-                }`}
-              >
-                <p
-                  className={`font-mono text-3xl font-bold tabular-nums transition-colors duration-500 sm:text-4xl ${
-                    isUrgent ? "text-red-400" : "text-white"
-                  }`}
-                >
-                  {unit.label === "Years"
-                    ? unit.value
-                    : pad(unit.value)}
-                </p>
+          {/* Digital timer display */}
 
-                <p
-                  className={`mt-2 text-[10px] font-semibold uppercase tracking-widest ${
-                    isUrgent ? "text-red-300/60" : "text-zinc-500"
-                  }`}
+          <div className="mt-8 rounded-2xl border border-white/[0.07] bg-black/25 p-4 sm:p-6">
+            <div
+              className={`grid gap-2 sm:gap-4 ${
+                time.years > 0
+                  ? "grid-cols-2 sm:grid-cols-5"
+                  : "grid-cols-2 sm:grid-cols-4"
+              }`}
+            >
+              {timeUnits.map((unit) => (
+                <div
+                  key={unit.label}
+                  className="min-w-0 text-center"
                 >
-                  {unit.label}
-                </p>
-              </div>
-            ))}
+                  <div
+                    className={`relative flex min-h-[76px] items-center justify-center overflow-hidden rounded-xl border shadow-inner sm:min-h-[104px] sm:rounded-2xl ${
+                      isUrgent
+                        ? "border-red-500/20 bg-[#230e0e]"
+                        : "border-emerald-400/10 bg-[#080e0b]"
+                    }`}
+                  >
+                    <div
+                      className={`absolute inset-x-0 top-1/2 h-px ${
+                        isUrgent
+                          ? "bg-red-400/10"
+                          : "bg-emerald-400/[0.07]"
+                      }`}
+                    />
+
+                    <span
+                      className={`relative font-mono text-3xl font-bold tracking-tight tabular-nums sm:text-5xl ${
+                        isUrgent
+                          ? "text-red-400"
+                          : "text-white"
+                      }`}
+                    >
+                      {unit.label === "Years"
+                        ? unit.value
+                        : pad(unit.value)}
+                    </span>
+                  </div>
+
+                  <p
+                    className={`mt-3 text-[9px] font-bold uppercase tracking-[0.15em] sm:text-[10px] ${
+                      isUrgent
+                        ? "text-red-300/60"
+                        : "text-zinc-500"
+                    }`}
+                  >
+                    {unit.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {isUrgent && !isExpired && (
+              <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs font-semibold text-red-400">
+                <Zap size={14} />
+                Less than 10 seconds remaining
+              </p>
+            )}
+
+            {isExpired && (
+              <p className="mt-5 text-center text-xs font-semibold text-red-400">
+                Election time has expired. Finishing your election...
+              </p>
+            )}
           </div>
 
-          {isUrgent && remainingMs > 0 && (
-            <p className="mt-5 animate-pulse text-center text-xs font-semibold text-red-400">
-              Less than 10 seconds remaining! The election is about to end.
-            </p>
-          )}
+          {/* Progress bar */}
 
-          <div
-            className={`mt-6 h-1 overflow-hidden rounded-full ${
-              isUrgent ? "bg-red-500/10" : "bg-emerald-400/10"
-            }`}
-          >
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between gap-3 text-[10px]">
+              <span className="font-medium text-zinc-500">
+                Election time elapsed
+              </span>
+
+              <span
+                className={`font-semibold tabular-nums ${
+                  isUrgent
+                    ? "text-red-400"
+                    : "text-emerald-400"
+                }`}
+              >
+                {progress.toFixed(1)}%
+              </span>
+            </div>
+
             <div
-              className={`h-full rounded-full transition-colors duration-500 ${
-                isUrgent ? "bg-red-500" : "bg-emerald-400"
+              className={`h-2 overflow-hidden rounded-full ${
+                isUrgent
+                  ? "bg-red-500/10"
+                  : "bg-emerald-400/10"
               }`}
-              style={{
-                width: `${
-                  activeProject.duration_ms > 0
-                    ? Math.min(
-                        100,
-                        (remainingMs / activeProject.duration_ms) * 100
-                      )
-                    : 0
-                }%`,
-              }}
-            />
+            >
+              <div
+                className={`h-full rounded-full transition-[width] duration-1000 ${
+                  isUrgent
+                    ? "bg-red-500"
+                    : "bg-emerald-400"
+                }`}
+                style={{
+                  width: `${progress}%`,
+                }}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Statistics */}
+      {/* STATISTICS */}
+
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           {
@@ -501,13 +664,16 @@ export default function ActiveProject() {
                 {stat.value.toLocaleString()}
               </p>
 
-              <p className="mt-1 text-xs text-zinc-500">{stat.label}</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {stat.label}
+              </p>
             </div>
           );
         })}
       </section>
 
-      {/* Nominees */}
+      {/* NOMINEES */}
+
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -527,7 +693,10 @@ export default function ActiveProject() {
 
         {nominees.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-[#0d1310] px-5 py-12 text-center">
-            <Users className="mx-auto mb-3 text-zinc-600" size={30} />
+            <Users
+              className="mx-auto mb-3 text-zinc-600"
+              size={30}
+            />
 
             <p className="text-sm font-medium text-zinc-300">
               No nominees yet
@@ -544,6 +713,8 @@ export default function ActiveProject() {
                 key={nominee.id}
                 className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0d1310]"
               >
+                {/* Nominee information */}
+
                 <div className="flex flex-wrap items-center justify-between gap-4 p-5">
                   <div className="flex min-w-0 items-center gap-3">
                     {nominee.image ? (
@@ -570,7 +741,10 @@ export default function ActiveProject() {
                   </div>
 
                   <div className="flex items-center gap-2 rounded-xl border border-emerald-400/10 bg-emerald-400/[0.06] px-3 py-2">
-                    <Vote size={15} className="text-emerald-400" />
+                    <Vote
+                      size={15}
+                      className="text-emerald-400"
+                    />
 
                     <span className="text-sm font-bold text-emerald-300">
                       {nominee.voters?.length ?? 0}
@@ -581,6 +755,8 @@ export default function ActiveProject() {
                     </span>
                   </div>
                 </div>
+
+                {/* Manifesto */}
 
                 {nominee.manifesto && (
                   <div className="border-t border-white/[0.06] px-5 py-4">
@@ -595,9 +771,13 @@ export default function ActiveProject() {
                 )}
 
                 {/* Voters */}
+
                 <div className="border-t border-white/[0.06] p-5">
                   <div className="mb-4 flex items-center gap-2">
-                    <Users size={15} className="text-emerald-400" />
+                    <Users
+                      size={15}
+                      className="text-emerald-400"
+                    />
 
                     <h3 className="text-xs font-semibold text-zinc-300">
                       Recorded Voters
@@ -656,7 +836,8 @@ export default function ActiveProject() {
         )}
       </section>
 
-      {/* Error notification */}
+      {/* ERROR NOTIFICATION */}
+
       {error && activeProject && (
         <div
           role="alert"
@@ -667,7 +848,8 @@ export default function ActiveProject() {
         </div>
       )}
 
-      {/* Force End */}
+      {/* FORCE END */}
+
       <section className="relative overflow-hidden rounded-2xl border border-red-500/15 bg-gradient-to-br from-[#1c1212] to-[#100e0e] p-5 sm:p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
@@ -690,12 +872,15 @@ export default function ActiveProject() {
           <button
             type="button"
             onClick={() => void endElection()}
-            disabled={ending}
+            disabled={ending || isExpired}
             className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 text-xs font-semibold text-red-300 transition-all hover:border-red-500/40 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {ending ? (
               <>
-                <Loader2 size={15} className="animate-spin" />
+                <Loader2
+                  size={15}
+                  className="animate-spin"
+                />
                 Ending Election...
               </>
             ) : (
@@ -708,9 +893,13 @@ export default function ActiveProject() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* FOOTER */}
+
       <div className="flex items-center justify-center gap-2 pb-2 text-[10px] text-zinc-600">
-        <CheckCircle2 size={12} className="text-emerald-500/70" />
+        <CheckCircle2
+          size={12}
+          className="text-emerald-500/70"
+        />
         VoteSphere Election Management
       </div>
     </div>
