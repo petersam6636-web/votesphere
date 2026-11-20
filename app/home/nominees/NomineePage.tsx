@@ -446,7 +446,7 @@ export default function NomineesPage() {
   };
 
   const handleDetails = (nomineeId: string) => {
-    router.push(`/home/share/${nomineeId}`);
+    router.push(`/home/details/${nomineeId}`);
   };
 
   const handleRefresh = async () => {
@@ -652,8 +652,8 @@ export default function NomineesPage() {
               </p>
 
               <p className="mt-1 text-xs leading-5 text-white/40">
-                This browser has already submitted a vote for this election.
-                You cannot vote again from this browser.
+                You have has already submitted a vote for this election.
+                You cannot vote again fornthis election.
               </p>
             </div>
           </div>

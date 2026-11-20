@@ -425,6 +425,18 @@ export default function ActiveProject() {
   const isExpired = remainingMs <= 0;
 
   const nominees = activeProject.nominees ?? [];
+  const topNominees = nominees
+    .map((nominee, originalIndex) => ({
+      nominee,
+      originalIndex,
+      voteCount: nominee.voters?.length ?? 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.voteCount - a.voteCount ||
+        a.originalIndex - b.originalIndex
+    )
+    .slice(0, 3);
 
   const totalVoters = nominees.reduce(
     (total, nominee) =>
@@ -882,7 +894,7 @@ export default function ActiveProject() {
           </div>
 
           <div className="rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-400">
-            {nominees.length} total
+            Showing {topNominees.length} of {nominees.length}
           </div>
         </div>
 
@@ -903,7 +915,7 @@ export default function ActiveProject() {
           </div>
         ) : (
           <div className="space-y-4">
-            {nominees.map((nominee, index) => (
+            {topNominees.map(({ nominee, voteCount }, index) => (
               <article
                 key={nominee.id}
                 className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0d1310]"
@@ -942,7 +954,7 @@ export default function ActiveProject() {
                     />
 
                     <span className="text-sm font-bold text-emerald-300">
-                      {nominee.voters?.length ?? 0}
+                      {voteCount}
                     </span>
 
                     <span className="text-[11px] text-zinc-500">
@@ -979,11 +991,11 @@ export default function ActiveProject() {
                     </h3>
 
                     <span className="text-[10px] text-zinc-600">
-                      ({nominee.voters?.length ?? 0})
+                      ({voteCount})
                     </span>
                   </div>
 
-                  {!nominee.voters?.length ? (
+                  {!voteCount ? (
                     <p className="text-xs text-zinc-600">
                       No voters recorded for this nominee yet.
                     </p>
