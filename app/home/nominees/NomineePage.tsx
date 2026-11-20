@@ -25,33 +25,20 @@ type VoteForm = {
   comment: string;
 };
 
+type VoteCheckResult = {
+  hasVoted: boolean;
+  voterId: string;
+};
+
 const getVoteStorageKey = (projectId: string | number) =>
   `votesphere-voted-${projectId}`;
 
-async function getAuthenticatedUserId() {
-  const { data, error } = await supabase.auth.getUser();
+const isValidUUID = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 
-  if (error) throw error;
-  if (!data.user) {
-    throw new Error("Please sign in again before voting.");
-  }
-
-  return data.user.id;
-}
-
-function syncLocalVoteMarker(projectId: string | number, hasVoted: boolean) {
-  try {
-    const storageKey = getVoteStorageKey(projectId);
-
-    if (hasVoted) {
-      localStorage.setItem(storageKey, "voted");
-    } else {
-      localStorage.removeItem(storageKey);
-    }
-  } catch (error) {
-    console.warn("Unable to synchronize the local vote marker:", error);
-  }
-}
+const createVoterId = () => crypto.randomUUID();
 
 function formatDate(date: string | null | undefined) {
   if (!date) return "Date unavailable";
@@ -71,12 +58,9 @@ function formatDate(date: string | null | undefined) {
 
 export default function NomineesPage() {
   const router = useRouter();
-
   const { taskKey, project, setProject } = useApp();
 
-  const [currentProject, setCurrentProject] =
-    useState<Project | null>(null);
-
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loadingProject, setLoadingProject] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -94,26 +78,28 @@ export default function NomineesPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [showAlreadyVoted, setShowAlreadyVoted] = useState(false);
 
-  // Select the earliest-created project.
+  // Always select the newest active project.
   const selectedProject = useMemo(() => {
-    const allProjects = project ?? [];
+    const allProjects = (project ?? []).filter(
+      (item) => item && item.deleted !== true
+    );
 
     if (allProjects.length === 0) return null;
 
     return [...allProjects].sort((a, b) => {
       const dateA = a.created_at
         ? new Date(a.created_at).getTime()
-        : Number.POSITIVE_INFINITY;
+        : 0;
 
       const dateB = b.created_at
         ? new Date(b.created_at).getTime()
-        : Number.POSITIVE_INFINITY;
+        : 0;
 
-      return dateA - dateB;
+      return dateB - dateA;
     })[0];
   }, [project]);
 
-  // Fetch the latest election and its nominees.
+  // Fetch one project with all its related election data.
   const refreshProject = useCallback(
     async (projectId: string | number) => {
       const { data, error } = await supabase
@@ -133,23 +119,37 @@ export default function NomineesPage() {
       if (error) throw error;
 
       if (!data) {
-        throw new Error("Unable to find the current election.");
+        throw new Error("Unable to find the selected election.");
       }
 
       const updatedProject = data as Project;
 
+      // Update the page immediately.
       setCurrentProject(updatedProject);
 
+      // Also update the shared application project state.
       setProject((previousProjects) => {
-        if (!previousProjects) {
-          return [updatedProject];
-        }
+        const existingProjects = previousProjects ?? [];
 
-        return previousProjects.map((item) =>
-          item.id === updatedProject.id
-            ? updatedProject
-            : item
-        );
+        const updatedProjects = [
+          ...existingProjects.filter(
+            (item) => String(item.id) !== String(updatedProject.id)
+          ),
+          updatedProject,
+        ];
+
+        // Keep the newest project first in shared state too.
+        return updatedProjects.sort((a, b) => {
+          const dateA = a.created_at
+            ? new Date(a.created_at).getTime()
+            : 0;
+
+          const dateB = b.created_at
+            ? new Date(b.created_at).getTime()
+            : 0;
+
+          return dateB - dateA;
+        });
       });
 
       return updatedProject;
@@ -157,34 +157,74 @@ export default function NomineesPage() {
     [setProject]
   );
 
-  // Database records are authoritative; local storage is only a cache.
+  // Check whether this browser's UUID exists for THIS project.
+  // We do not check whether other people have voted in the project.
   const checkVotingStatus = useCallback(
-    async (projectId: string | number, userId?: string) => {
-      const voterUserId = userId ?? (await getAuthenticatedUserId());
+    async (projectId: string | number): Promise<VoteCheckResult> => {
+      const storageKey = getVoteStorageKey(projectId);
+
+      let storedId = localStorage.getItem(storageKey);
+
+      const hadValidStoredId = Boolean(
+        storedId && isValidUUID(storedId)
+      );
+
+      // Create an ID if this browser has no valid ID for this project.
+      if (!hadValidStoredId) {
+        storedId = createVoterId();
+      }
+
+      const voterId = storedId as string;
+
+      // Check the exact voter ID AND project ID combination.
       const { data, error } = await supabase
         .from("voters")
-        .select("project_id")
-        .eq("user_id", voterUserId);
+        .select("id, project_id")
+        .eq("id", voterId)
+        .eq("project_id", projectId)
+        .maybeSingle();
 
       if (error) throw error;
 
-      const voted = (data ?? []).some(
-        (voter) => String(voter.project_id) === String(projectId)
-      );
+      // This exact UUID has already voted in this exact project.
+      if (data) {
+        localStorage.setItem(storageKey, voterId);
+        setHasVoted(true);
 
-      syncLocalVoteMarker(projectId, voted);
-      setHasVoted(voted);
+        return {
+          hasVoted: true,
+          voterId,
+        };
+      }
 
-      return voted;
+      // The saved UUID does not exist in this project's vote records.
+      // If it was an old/stale UUID, generate a fresh one.
+      const activeVoterId = hadValidStoredId
+        ? createVoterId()
+        : voterId;
+
+      localStorage.setItem(storageKey, activeVoterId);
+
+      setHasVoted(false);
+
+      return {
+        hasVoted: false,
+        voterId: activeVoterId,
+      };
     },
     []
   );
 
-  // Load project and subscribe to realtime updates.
+  // Load the newest project and its related data.
   useEffect(() => {
+    if (taskKey === null || project === null) {
+      setLoadingProject(true);
+      return;
+    }
+
     if (taskKey !== true || !selectedProject?.id) {
-      setLoadingProject(false);
       setCurrentProject(null);
+      setLoadingProject(false);
       return;
     }
 
@@ -197,8 +237,10 @@ export default function NomineesPage() {
       try {
         const updated = await refreshProject(selectedProject.id);
 
+        const voteStatus = await checkVotingStatus(updated.id);
+
         if (active) {
-          await checkVotingStatus(updated.id);
+          setHasVoted(voteStatus.hasVoted);
         }
       } catch (error: unknown) {
         if (active) {
@@ -209,12 +251,15 @@ export default function NomineesPage() {
           );
         }
       } finally {
-        if (active) setLoadingProject(false);
+        if (active) {
+          setLoadingProject(false);
+        }
       }
     };
 
     void loadProject();
 
+    // Listen for new votes and refresh the election data.
     const channel = supabase
       .channel(`nominee-votes-${selectedProject.id}`)
       .on(
@@ -223,10 +268,11 @@ export default function NomineesPage() {
           event: "*",
           schema: "public",
           table: "voters",
+          filter: `project_id=eq.${selectedProject.id}`,
         },
         () => {
           void refreshProject(selectedProject.id).catch((error) => {
-            console.error("Unable to refresh nominee results:", error);
+            console.error("Unable to refresh election results:", error);
           });
         }
       )
@@ -239,6 +285,7 @@ export default function NomineesPage() {
   }, [
     taskKey,
     selectedProject?.id,
+    project,
     refreshProject,
     checkVotingStatus,
   ]);
@@ -254,44 +301,50 @@ export default function NomineesPage() {
     return () => window.clearTimeout(timeout);
   }, [successMessage]);
 
-// Sort nominees by highest vote count first.
-const nominees = useMemo(() => {
-  return [...(currentProject?.nominees ?? [])].sort((a, b) => {
-    const votesA = a.voters?.length ?? 0;
-    const votesB = b.voters?.length ?? 0;
+  // Sort nominees by highest number of votes first.
+  // Nominees with no votes remain visible at the bottom.
+  const nominees = useMemo(() => {
+    return [...(currentProject?.nominees ?? [])].sort((a, b) => {
+      const votesA = a.voters?.length ?? 0;
+      const votesB = b.voters?.length ?? 0;
 
-    return votesB - votesA;
-  });
-}, [currentProject?.nominees]);
+      return votesB - votesA;
+    });
+  }, [currentProject?.nominees]);
+
   const totalVotes = nominees.reduce(
     (total, nominee) => total + (nominee.voters?.length ?? 0),
     0
   );
 
-  // Open voting modal.
+  // Open the voting modal only if this browser has not voted.
   const openVoteModal = async (nominee: Nominee) => {
-    if (!currentProject?.id) return;
+    if (!currentProject?.id || submitting) return;
 
     setVoteError("");
 
-    let alreadyVoted: boolean;
     try {
-      alreadyVoted = await checkVotingStatus(currentProject.id);
+      const voteStatus = await checkVotingStatus(currentProject.id);
+
+      if (voteStatus.hasVoted) {
+        setShowAlreadyVoted(true);
+        return;
+      }
+
+      setSelectedNominee(nominee);
+      setVoteForm({
+        name: "",
+        comment: "",
+      });
     } catch (error: unknown) {
-      console.error("Unable to verify voting eligibility:", error);
+      console.error("Unable to check voting status:", error);
+
       setVoteError(
-        "We couldn't verify whether you have already voted. Please try again."
+        error instanceof Error
+          ? error.message
+          : "We couldn't verify your voting status. Please try again."
       );
-      return;
     }
-
-    if (alreadyVoted) {
-      setShowAlreadyVoted(true);
-      return;
-    }
-
-    setSelectedNominee(nominee);
-    setVoteForm({ name: "", comment: "" });
   };
 
   const closeVoteModal = () => {
@@ -299,10 +352,13 @@ const nominees = useMemo(() => {
 
     setSelectedNominee(null);
     setVoteError("");
-    setVoteForm({ name: "", comment: "" });
+    setVoteForm({
+      name: "",
+      comment: "",
+    });
   };
 
-  // Submit vote.
+  // Save the vote and fetch the latest project data again.
   const handleVote = async () => {
     if (!selectedNominee || !currentProject?.id || submitting) return;
 
@@ -318,28 +374,44 @@ const nominees = useMemo(() => {
     setVoteError("");
 
     try {
-      const userId = await getAuthenticatedUserId();
-
       // Recheck immediately before inserting.
-      const alreadyVoted = await checkVotingStatus(currentProject.id, userId);
+      const voteStatus = await checkVotingStatus(currentProject.id);
 
-      if (alreadyVoted) {
+      if (voteStatus.hasVoted) {
         setShowAlreadyVoted(true);
         setSelectedNominee(null);
         return;
       }
 
+      // Use the same UUID stored in localStorage as the voters.id.
       const { error } = await supabase.from("voters").insert({
+        id: voteStatus.voterId,
         project_id: currentProject.id,
         nominee_id: selectedNominee.id,
-        user_id: userId,
         name,
         comment: comment || null,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle a duplicate insert, including a simultaneous submission.
+        const { data: existingVote, error: checkError } = await supabase
+          .from("voters")
+          .select("id")
+          .eq("id", voteStatus.voterId)
+          .eq("project_id", currentProject.id)
+          .maybeSingle();
 
-      syncLocalVoteMarker(currentProject.id, true);
+        if (checkError) throw error;
+
+        if (existingVote) {
+          setHasVoted(true);
+          setShowAlreadyVoted(true);
+          setSelectedNominee(null);
+          return;
+        }
+
+        throw error;
+      }
 
       setHasVoted(true);
 
@@ -347,26 +419,33 @@ const nominees = useMemo(() => {
         selectedNominee.name || "your selected nominee";
 
       setSelectedNominee(null);
-      setVoteForm({ name: "", comment: "" });
+      setVoteForm({
+        name: "",
+        comment: "",
+      });
 
       setSuccessMessage(
         `Thank you, ${name}! Your vote for ${nomineeName} was submitted successfully.`
       );
 
+      // Fetch the project again after voting.
+      // This refreshes nominee vote counts and shared setProject.
       try {
         await refreshProject(currentProject.id);
         setLoadError("");
       } catch (refreshError: unknown) {
         console.error(
-          "Vote was saved, but the project could not be refreshed:",
+          "Vote saved, but project refresh failed:",
           refreshError
         );
 
         setLoadError(
-          "Your vote was submitted successfully, but the latest results could not be loaded. Please refresh the page."
+          "Your vote was submitted, but the latest results could not be loaded. Please refresh the page."
         );
       }
     } catch (error: unknown) {
+      console.error("Vote submission failed:", error);
+
       setVoteError(
         error instanceof Error
           ? error.message
@@ -385,7 +464,7 @@ const nominees = useMemo(() => {
     router.push(`/home/share/${nomineeId}`);
   };
 
-  // Loading shared application state.
+  // Shared application state is still loading.
   if (taskKey === null || project === null) {
     return (
       <div className="flex min-h-[65vh] items-center justify-center">
@@ -397,8 +476,8 @@ const nominees = useMemo(() => {
     );
   }
 
-  // No active election: centered without unnecessary scrolling.
-  if (!(taskKey === true && project.length > 0)) {
+  // No active project.
+  if (taskKey !== true || project.length === 0) {
     return (
       <div className="flex min-h-[calc(100dvh-5rem)] w-full items-center justify-center overflow-hidden px-4 py-4">
         <section className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/[0.09] bg-[#0b1510] p-7 text-center shadow-[0_25px_80px_rgba(0,0,0,0.35)] sm:p-9">
@@ -420,7 +499,7 @@ const nominees = useMemo(() => {
           <button
             type="button"
             onClick={handleStartElection}
-            className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-[#04130c] shadow-[0_8px_25px_rgba(16,185,129,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 active:translate-y-0"
+            className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-[#04130c] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300"
           >
             <Vote size={17} />
             Start Election
@@ -484,12 +563,11 @@ const nominees = useMemo(() => {
 
   return (
     <main className="relative min-h-screen overflow-hidden px-2 py-4 text-white lg:px-6">
-      {/* Ambient background */}
       <div className="pointer-events-none absolute left-1/4 top-0 h-72 w-72 rounded-full bg-emerald-500/[0.035] blur-[100px]" />
       <div className="pointer-events-none absolute bottom-20 right-0 h-64 w-64 rounded-full bg-emerald-400/[0.035] blur-[100px]" />
 
       <div className="relative mx-auto w-full max-w-7xl">
-        {/* Header */}
+        {/* Election header */}
         <header className="mb-8 flex flex-col justify-between gap-5 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-300/65">
@@ -513,7 +591,7 @@ const nominees = useMemo(() => {
           </div>
         </header>
 
-        {/* Election information */}
+        {/* Election statistics */}
         <section className="mb-7 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
             <div className="flex items-center justify-between">
@@ -583,7 +661,7 @@ const nominees = useMemo(() => {
           </div>
         )}
 
-        {/* Voting status */}
+        {/* Voter status */}
         {hasVoted && (
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.055] p-4">
             <ShieldCheck
@@ -612,7 +690,7 @@ const nominees = useMemo(() => {
               Meet the nominees
             </h2>
             <p className="mt-1 text-sm text-white/40">
-              Review each nominee and choose who deserves your vote.
+              Nominees are arranged from the highest votes to the lowest.
             </p>
           </div>
 
@@ -635,7 +713,7 @@ const nominees = useMemo(() => {
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
-            {nominees.map((nominee) => {
+            {nominees.map((nominee, index) => {
               const voteCount = nominee.voters?.length ?? 0;
 
               const percentage =
@@ -655,10 +733,19 @@ const nominees = useMemo(() => {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <h3 className="break-words text-lg font-semibold text-white">
-                          {nominee.name || "Unnamed nominee"}
-                        </h3>
-                        <p className="mt-1 text-xs text-white/35">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <h3 className="break-words text-lg font-semibold text-white">
+                            {nominee.name || "Unnamed nominee"}
+                          </h3>
+
+                          {index === 0 && voteCount > 0 && (
+                            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.08] px-2 py-1 text-[10px] font-semibold text-emerald-300">
+                              Leading
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-white/35">
                           Election nominee
                         </p>
                       </div>
@@ -725,8 +812,8 @@ const nominees = useMemo(() => {
                       <button
                         type="button"
                         onClick={() => void openVoteModal(nominee)}
-                        disabled={hasVoted}
-                        className="group/button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#04130c] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_8px_25px_rgba(16,185,129,0.15)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={hasVoted || submitting}
+                        className="group/button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#04130c] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Vote size={16} />
                         {hasVoted ? "Already voted" : "Vote for nominee"}
@@ -793,8 +880,8 @@ const nominees = useMemo(() => {
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-white/45">
-              A vote has already been recorded from this browser for this
-              election. You cannot vote again.
+              This voter ID already has a vote recorded for this election.
+              You cannot vote again using this browser ID.
             </p>
 
             <button
@@ -938,7 +1025,7 @@ const nominees = useMemo(() => {
                   type="button"
                   onClick={handleVote}
                   disabled={submitting || !voteForm.name.trim()}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3.5 text-sm font-semibold text-[#04130c] shadow-[0_8px_25px_rgba(16,185,129,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3.5 text-sm font-semibold text-[#04130c] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {submitting ? (
                     <>
