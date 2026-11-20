@@ -15,7 +15,6 @@ import {
   LoaderCircle,
   X,
   Code2,
-  Building2,
   Sparkles,
   ChevronRight,
   Mail,
@@ -202,7 +201,7 @@ export default function SettingsPage() {
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[#050b08] px-4 py-8 text-white sm:px-6 lg:px-10"
+      className="relative min-h-screen overflow-hidden px-2 py-4 text-white sm:px-3"
       style={{
         backgroundImage: `
           radial-gradient(circle at 10% 5%, rgba(16,185,129,0.09), transparent 32%),
@@ -217,11 +216,6 @@ export default function SettingsPage() {
           STATIC BACKGROUND DECORATION
       -------------------------------------------------- */}
 
-      <div className="pointer-events-none absolute -left-40 top-10 h-96 w-96 rounded-full bg-emerald-500/[0.055] blur-[130px]" />
-
-      <div className="pointer-events-none absolute -right-40 top-96 h-96 w-96 rounded-full bg-emerald-400/[0.045] blur-[130px]" />
-
-      <div className="pointer-events-none absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-teal-500/[0.035] blur-[120px]" />
 
       {/* MAIN CONTENT */}
 
@@ -281,66 +275,94 @@ export default function SettingsPage() {
               </div>
 
               <p className="mt-1 text-sm text-gray-500">
-                Your currently authenticated account information.
+                Your personal VoteSphere account information.
               </p>
 
             </div>
 
             {/* Account Information */}
 
-            <div className="p-6">
+            <div className="p-5 sm:p-6">
 
               {loading ? (
 
-                <div className="flex min-h-36 items-center justify-center">
-                  <LoaderCircle className="h-6 w-6 animate-spin text-emerald-400" />
+                <div className="flex min-h-48 items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
+
+                    <LoaderCircle className="h-7 w-7 animate-spin text-emerald-400" />
+
+                    <p className="text-xs text-gray-500">
+                      Preparing your account...
+                    </p>
+
+                  </div>
                 </div>
 
               ) : (
 
-                <>
+                <div className="space-y-6">
 
-                  {/* Profile */}
+                  {/* Welcome Message */}
 
-                  <div className="flex items-center gap-4">
+                  <div className="rounded-2xl border border-emerald-400/[0.12] bg-gradient-to-br from-emerald-400/[0.08] via-white/[0.025] to-transparent p-5">
 
-                    <div className="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]">
+                    <div className="flex items-center gap-4">
 
-                      {profileImage ? (
+                      {/* Profile Image */}
 
-                        <img
-                          src={profileImage}
-                          alt="Profile"
-                          className="h-full w-full object-cover"
-                        />
+                      <div className="relative shrink-0">
 
-                      ) : (
+                        <div className="absolute -inset-1 rounded-[22px] bg-emerald-400/20 blur-md" />
 
-                        <span className="text-2xl font-semibold text-gray-300">
-                          {userName.charAt(0).toUpperCase()}
-                        </span>
+                        <div className="relative flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[20px] border border-emerald-400/20 bg-[#14231a] shadow-lg shadow-black/20">
 
-                      )}
+                          {profileImage ? (
+
+                            <img
+                              src={profileImage}
+                              alt={`${userName}'s profile`}
+                              className="h-full w-full object-cover"
+                            />
+
+                          ) : (
+
+                            <span className="text-3xl font-semibold text-emerald-300">
+                              {userName.charAt(0).toUpperCase()}
+                            </span>
+
+                          )}
+
+                        </div>
+
+                      </div>
+
+                      {/* User Details */}
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                          Welcome back
+                        </p>
+
+                        <h3 className="mt-1.5 truncate text-lg font-semibold tracking-tight text-white sm:text-xl">
+                          {userName}
+                        </h3>
+
+                        <p className="mt-1 text-xs text-gray-400">
+                          Your VoteSphere account
+                        </p>
+
+                      </div>
 
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="mt-5 border-t border-white/[0.07] pt-4">
 
-                      <h3 className="truncate text-lg font-semibold text-white">
-                        {userName}
-                      </h3>
-
-                      <p className="mt-1 break-all text-sm text-gray-400">
-                        {userEmail}
+                      <p className="text-xs leading-5 text-gray-400">
+                        Welcome to your account space. Here you can view
+                        your personal information and manage your
+                        VoteSphere experience.
                       </p>
-
-                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.07] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-emerald-300">
-
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-
-                        Authenticated account
-
-                      </span>
 
                     </div>
 
@@ -348,32 +370,56 @@ export default function SettingsPage() {
 
                   {/* Email Information */}
 
-                  <div className="mt-7 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+                  <div>
 
-                    <div className="flex items-center gap-2 text-gray-400">
+                    <div className="mb-3 flex items-center gap-2">
 
-                      <Mail className="h-4 w-4" />
+                      <Mail className="h-4 w-4 text-emerald-400" />
 
-                      <span className="text-xs font-medium uppercase tracking-wider">
-                        Email address
-                      </span>
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-400">
+                        Account email
+                      </h3>
 
                     </div>
 
-                    <p className="mt-2 break-all text-sm text-gray-200">
-                      {userEmail}
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 transition-colors duration-200 hover:border-emerald-400/[0.15] hover:bg-white/[0.04]">
+
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035]">
+
+                        <Mail className="h-[17px] w-[17px] text-gray-400" />
+
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                          Email address
+                        </p>
+
+                        <p className="mt-1 break-all text-sm font-medium text-gray-200">
+                          {userEmail}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  {/* Account Note */}
+
+                  <div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5">
+
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+
+                    <p className="text-xs leading-5 text-gray-500">
+                      Your account information is displayed here for
+                      reference. Profile editing is not currently available.
                     </p>
 
                   </div>
 
-                  {/* Account Description */}
-
-                  <p className="mt-4 text-xs leading-5 text-gray-500">
-                    Your account information is displayed here for reference.
-                    Profile editing is not currently available.
-                  </p>
-
-                </>
+                </div>
 
               )}
 
@@ -409,9 +455,7 @@ export default function SettingsPage() {
 
             <div className="p-3 sm:p-4">
 
-              {/* --------------------------------------------------
-                  EXISTING SETTINGS
-              -------------------------------------------------- */}
+              {/* EXISTING SETTINGS */}
 
               <div className="space-y-1">
 
@@ -456,9 +500,7 @@ export default function SettingsPage() {
 
               </div>
 
-              {/* --------------------------------------------------
-                  ABOUT THE DEVELOPER
-              -------------------------------------------------- */}
+              {/* ABOUT THE DEVELOPER */}
 
               <div className="my-3 border-t border-white/[0.07]" />
 
@@ -498,9 +540,7 @@ export default function SettingsPage() {
 
               </button>
 
-              {/* --------------------------------------------------
-                  SIGN OUT
-              -------------------------------------------------- */}
+              {/* SIGN OUT */}
 
               <div className="my-3 border-t border-white/[0.07]" />
 
@@ -544,9 +584,7 @@ export default function SettingsPage() {
 
         </div>
 
-        {/* --------------------------------------------------
-            FOOTER
-        -------------------------------------------------- */}
+        {/* FOOTER */}
 
         <p className="mt-8 text-center text-xs text-gray-600">
           VoteSphere · Account and application settings
@@ -585,9 +623,7 @@ export default function SettingsPage() {
 
               <div className="pointer-events-none absolute -bottom-24 -left-20 h-56 w-56 rounded-full bg-teal-400/[0.06] blur-[90px]" />
 
-              {/* --------------------------------------------------
-                  MODAL HEADER
-              -------------------------------------------------- */}
+              {/* MODAL HEADER */}
 
               <div className="relative flex items-center justify-between border-b border-white/[0.07] px-6 py-5">
 
@@ -624,9 +660,7 @@ export default function SettingsPage() {
 
               </div>
 
-              {/* --------------------------------------------------
-                  MODAL CONTENT
-              -------------------------------------------------- */}
+              {/* MODAL CONTENT */}
 
               <div className="relative p-6 sm:p-7">
 
@@ -638,11 +672,7 @@ export default function SettingsPage() {
 
                   <div className="relative">
 
-                    {/* Outer Glow */}
-
                     <div className="pointer-events-none absolute -inset-4 rounded-[32px] bg-emerald-400/[0.16] blur-2xl" />
-
-                    {/* Logo Container */}
 
                     <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-[26px] border border-emerald-400/20 bg-[#101b14] p-3 shadow-[0_0_25px_rgba(16,185,129,0.12),0_12px_35px_rgba(0,0,0,0.45)]">
 
@@ -681,13 +711,9 @@ export default function SettingsPage() {
 
                 </div>
 
-                {/* --------------------------------------------------
-                    DEVELOPER INFORMATION
-                -------------------------------------------------- */}
+                {/* DEVELOPER INFORMATION */}
 
                 <div className="mt-7 space-y-3">
-
-                  {/* Working Name */}
 
                   <div className="flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 transition-colors hover:bg-white/[0.04]">
 
@@ -713,34 +739,7 @@ export default function SettingsPage() {
 
                 </div>
 
-                {/* --------------------------------------------------
-                    ABOUT MESSAGE
-                -------------------------------------------------- */}
-
-                <div className="mt-5 rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.035] p-5">
-
-                  <div className="flex items-center gap-2">
-
-                    <Building2 className="h-4 w-4 text-emerald-300" />
-
-                    <h4 className="text-sm font-semibold text-gray-100">
-                      Built with purpose.
-                    </h4>
-
-                  </div>
-
-                  <p className="mt-2 text-sm leading-6 text-gray-400">
-                    VoteSphere is presented as a modern digital election
-                    experience. The application is designed to provide a
-                    secure and user-friendly platform for managing elections
-                    and voting processes.
-                  </p>
-
-                </div>
-
-                {/* --------------------------------------------------
-                    MODAL FOOTER
-                -------------------------------------------------- */}
+                {/* MODAL FOOTER */}
 
                 <div className="mt-6 flex items-center justify-between border-t border-white/[0.07] pt-5">
 
@@ -863,16 +862,13 @@ export default function SettingsPage() {
 
                     <>
                       <LoaderCircle className="h-4 w-4 animate-spin" />
-
                       Signing out...
-
                     </>
 
                   ) : (
 
                     <>
                       <LogOut className="h-4 w-4" />
-
                       Yes, sign out
                     </>
 

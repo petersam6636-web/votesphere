@@ -91,6 +91,86 @@ function getInitials(name?: string | null) {
     .join("");
 }
 
+// ------------------------------------------------------
+// ANIMATED CIRCULAR PROGRESS
+// ------------------------------------------------------
+
+type CircularProgressProps = {
+  percentage: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+};
+
+function CircularProgress({
+  percentage,
+  size = 68,
+  strokeWidth = 5,
+  color = "text-emerald-300",
+}: CircularProgressProps) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const safePercentage = Math.min(100, Math.max(0, percentage));
+
+  const offset =
+    circumference - (safePercentage / 100) * circumference;
+
+  return (
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="h-full w-full -rotate-90 overflow-visible"
+        role="img"
+        aria-label={`${safePercentage}% of all votes`}
+      >
+        {/* Background Ring */}
+
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-white/[0.09]"
+        />
+
+        {/* Animated Progress Ring */}
+
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className={`${color} transition-[stroke-dashoffset] duration-1000 ease-in-out`}
+          style={{
+            filter: "drop-shadow(0 0 4px rgba(52,211,153,0.25))",
+          }}
+        />
+      </svg>
+
+      {/* Percentage */}
+
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold tabular-nums text-emerald-300">
+        {safePercentage}%
+      </span>
+    </div>
+  );
+}
+
+// ------------------------------------------------------
+// DETAILS PAGE
+// ------------------------------------------------------
+
 export default function DetailsPage({ nomineeId }: DetailsProps) {
   const { project } = useApp();
 
@@ -107,6 +187,10 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
       ) ?? null,
     [project, nomineeId]
   );
+
+  // ------------------------------------------------------
+  // LOAD PROJECT
+  // ------------------------------------------------------
 
   useEffect(() => {
     if (contextProject || lookup.nomineeId === nomineeId) return;
@@ -174,6 +258,10 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
     };
   }, [contextProject, lookup.nomineeId, nomineeId]);
 
+  // ------------------------------------------------------
+  // PROJECT DATA
+  // ------------------------------------------------------
+
   const currentProject =
     contextProject ??
     (lookup.nomineeId === nomineeId ? lookup.project : null);
@@ -183,6 +271,10 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
 
   const lookupError =
     lookup.nomineeId === nomineeId ? lookup.error : "";
+
+  // ------------------------------------------------------
+  // VOTING RESULTS
+  // ------------------------------------------------------
 
   const result = useMemo(() => {
     if (!currentProject) {
@@ -270,9 +362,17 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
     .map((voter) => voter.comment?.trim())
     .filter((comment): comment is string => Boolean(comment));
 
+  // ------------------------------------------------------
+  // LOADING
+  // ------------------------------------------------------
+
   if (isLoading) {
     return <ProjectLoading />;
   }
+
+  // ------------------------------------------------------
+  // PROJECT UNAVAILABLE
+  // ------------------------------------------------------
 
   if (!currentProject) {
     return (
@@ -305,7 +405,11 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
     );
   }
 
-  if (!nominee || !currentProject) {
+  // ------------------------------------------------------
+  // NOMINEE UNAVAILABLE
+  // ------------------------------------------------------
+
+  if (!nominee) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07110c] px-4 py-8 text-white">
         <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-[120px]" />
@@ -338,17 +442,20 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
 
   const isWinner = rank === 1;
 
-  return (
-    <main className="relative min-h-screen overflow-hidden  px-1 py-5 text-white sm:px-6 lg:px-8">
-      {/* Background decoration */}
-      {/* <div className="pointer-events-none fixed -left-40 top-0 h-[30rem] w-[30rem] rounded-full bg-emerald-500/[0.07] blur-[140px]" />
-      <div className="pointer-events-none fixed -right-40 top-1/3 h-[30rem] w-[30rem] rounded-full bg-green-500/[0.06] blur-[140px]" />
-      <div className="pointer-events-none fixed inset-0 opacity-[0.025] [background-image:radial-gradient(#a7f3d0_1px,transparent_1px)] [background-size:26px_26px]" /> */}
+  // ------------------------------------------------------
+  // MAIN RENDER
+  // ------------------------------------------------------
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl">
-        {/* Navigation and page heading */}
-        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+  return (
+    <main className="relative min-h-screen w-full max-w-full overflow-x-clip px-1 py-5 text-white sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto w-full min-w-0 max-w-7xl">
+
+        {/* --------------------------------------------------
+            NAVIGATION AND PAGE HEADING
+        -------------------------------------------------- */}
+
+        <div className="mb-7 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <Link
               href="/home/nominees"
               className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.035] px-4 py-2 text-xs font-medium text-gray-300 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300"
@@ -378,13 +485,18 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
           </div>
         </div>
 
-        {/* Profile overview */}
-        <section className="relative mb-6 overflow-hidden rounded-[2rem] border border-emerald-400/15 bg-[#0b1912] shadow-[0_25px_90px_rgba(0,0,0,0.3)]">
+        {/* --------------------------------------------------
+            PROFILE OVERVIEW
+        -------------------------------------------------- */}
+
+        <section className="relative mb-6 w-full min-w-0 overflow-hidden rounded-[2rem] border border-emerald-400/15 bg-[#0b1912] shadow-[0_25px_90px_rgba(0,0,0,0.3)]">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.09] via-transparent to-transparent" />
           <div className="absolute -right-20 -top-36 h-96 w-96 rounded-full bg-emerald-400/[0.08] blur-[100px]" />
 
-          <div className="relative grid gap-8 p-5 sm:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-10">
+          <div className="relative grid min-w-0 gap-8 p-5 sm:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-10">
+
             {/* Nominee identity */}
+
             <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-center">
               <div className="relative mx-auto shrink-0 sm:mx-0">
                 {nominee.image ? (
@@ -417,13 +529,15 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                 </h2>
 
                 <p className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-400 sm:justify-start">
-                  <Vote className="h-4 w-4 text-emerald-400" />
-                  {currentProject.name || "Election project"}
+                  <Vote className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span className="break-words">
+                    {currentProject.name || "Election project"}
+                  </span>
                 </p>
 
                 {nominee.created_at && (
                   <p className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 sm:justify-start">
-                    <CalendarDays className="h-3.5 w-3.5" />
+                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                     Joined {formatDate(nominee.created_at)}
                   </p>
                 )}
@@ -443,8 +557,10 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
             </div>
 
             {/* Profile quick information */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[390px] lg:grid-cols-2">
-              <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.06] p-4">
+
+            <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[390px] lg:grid-cols-2">
+
+              <div className="min-w-0 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.06] p-4">
                 <Vote className="mb-3 h-5 w-5 text-emerald-300" />
                 <p className="text-3xl font-bold tabular-nums text-white">
                   {voteCount}
@@ -454,7 +570,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+              <div className="min-w-0 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
                 <Trophy className="mb-3 h-5 w-5 text-yellow-300" />
                 <p className="text-3xl font-bold tabular-nums text-white">
                   {rank > 0 ? `#${rank}` : "—"}
@@ -464,9 +580,9 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                 </p>
               </div>
 
-              <div className="col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 sm:col-span-1 lg:col-span-2">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
+              <div className="col-span-2 min-w-0 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 sm:col-span-1 lg:col-span-2">
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <div className="min-w-0">
                     <Users className="mb-3 h-5 w-5 text-blue-300" />
                     <p className="text-3xl font-bold tabular-nums text-white">
                       {voteShare}%
@@ -476,27 +592,39 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                     </p>
                   </div>
 
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-emerald-400/20">
-                    <span className="text-sm font-bold text-emerald-300">
-                      {voteShare}%
-                    </span>
-                  </div>
+                  {/* Animated SVG Circular Chart */}
+
+                  <CircularProgress
+                    percentage={voteShare}
+                    size={68}
+                    strokeWidth={5}
+                  />
                 </div>
               </div>
+
             </div>
           </div>
         </section>
 
-        {/* Main content layout */}
-        <div className="grid items-start gap-6 xl:grid-cols-12">
-          {/* Left content */}
-          <div className="space-y-6 xl:col-span-7">
-            {/* Voting performance */}
-            <section className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
+        {/* --------------------------------------------------
+            MAIN CONTENT LAYOUT
+        -------------------------------------------------- */}
+
+        <div className="grid w-full min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-12">
+
+          {/* LEFT CONTENT */}
+
+          <div className="min-w-0 w-full space-y-6 xl:col-span-7">
+
+            {/* --------------------------------------------------
+                VOTING PERFORMANCE
+            -------------------------------------------------- */}
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
+              <div className="mb-6 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <div className="mb-2 flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/10">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10">
                       <ChartNoAxesColumnIncreasing className="h-4 w-4 text-emerald-400" />
                     </div>
                     <h2 className="text-base font-semibold text-white">
@@ -509,13 +637,14 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </p>
                 </div>
 
-                <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                <span className="shrink-0 rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-3 py-1.5 text-xs font-semibold text-emerald-300">
                   {voteShare}% vote share
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+              <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
+
+                <div className="min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
                   <p className="text-2xl font-bold text-white">
                     {voteCount}
                   </p>
@@ -524,7 +653,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+                <div className="min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
                   <p className="text-2xl font-bold text-white">
                     {rank > 0 ? `#${rank}` : "—"}
                   </p>
@@ -533,7 +662,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </p>
                 </div>
 
-                <div className="col-span-2 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 sm:col-span-1">
+                <div className="col-span-2 min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 sm:col-span-1">
                   <p className="text-2xl font-bold text-white">
                     {totalVotes}
                   </p>
@@ -541,12 +670,14 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                     Total project votes
                   </p>
                 </div>
+
               </div>
 
               {/* Performance against leader */}
-              <div className="mt-5 rounded-2xl border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.07] to-transparent p-5 sm:p-6">
-                <div className="mb-5 flex items-start justify-between gap-4">
-                  <div>
+
+              <div className="mt-5 min-w-0 rounded-2xl border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.07] to-transparent p-5 sm:p-6">
+                <div className="mb-5 flex min-w-0 items-start justify-between gap-4">
+                  <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-white">
                       Performance against the leader
                     </h3>
@@ -555,33 +686,36 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                     </p>
                   </div>
 
-                  <span className="text-2xl font-bold tabular-nums text-emerald-300">
+                  <span className="shrink-0 text-2xl font-bold tabular-nums text-emerald-300">
                     {progress}%
                   </span>
                 </div>
 
-                <div className="h-3 overflow-hidden rounded-full bg-black/40">
+                <div className="h-3 w-full overflow-hidden rounded-full bg-black/40">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-emerald-700 via-emerald-500 to-emerald-300 transition-all duration-700"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-gray-500">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500">
                   <span>{voteCount} votes received</span>
                   <span>{leadingVotes} leading votes</span>
                 </div>
               </div>
             </section>
 
-            {/* Manifesto */}
-            <section className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
+            {/* --------------------------------------------------
+                MANIFESTO
+            -------------------------------------------------- */}
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/15 bg-emerald-400/[0.07]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-400/15 bg-emerald-400/[0.07]">
                   <Award className="h-5 w-5 text-emerald-400" />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-white">
                     Manifesto
                   </h2>
@@ -592,8 +726,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
               </div>
 
               {nominee.manifesto?.trim() ? (
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
-                  <p className="whitespace-pre-wrap text-sm leading-8 text-gray-300">
+                <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-8 text-gray-300">
                     {nominee.manifesto}
                   </p>
                 </div>
@@ -610,15 +744,18 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
               )}
             </section>
 
-            {/* Ranking */}
-            <section className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-yellow-300/15 bg-yellow-300/[0.07]">
+            {/* --------------------------------------------------
+                ELECTION DASHBOARD
+            -------------------------------------------------- */}
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
+              <div className="mb-6 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-yellow-300/15 bg-yellow-300/[0.07]">
                     <Trophy className="h-5 w-5 text-yellow-300" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-semibold text-white">
                       Election dashboard
                     </h2>
@@ -628,15 +765,16 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </div>
                 </div>
 
-                <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-gray-400">
+                <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-gray-400">
                   Showing {topNominees.length} of {rankedNominees.length}
                 </span>
               </div>
 
               {topNominees.length > 0 ? (
-                <div className="space-y-4">
+                <div className="w-full min-w-0 space-y-4">
                   {topNominees.map((item) => {
                     const itemVotes = item.voters?.length ?? 0;
+
                     const percentage =
                       totalVotes > 0
                         ? (itemVotes / totalVotes) * 100
@@ -653,14 +791,14 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                     return (
                       <div
                         key={item.id}
-                        className={`flex items-center justify-between gap-4 rounded-2xl border p-4 transition ${
+                        className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-2xl border p-3 transition sm:gap-4 sm:p-4 ${
                           isCurrentNominee
                             ? "border-emerald-400/25 bg-emerald-400/[0.055]"
                             : "border-white/[0.06] bg-white/[0.02]"
                         }`}
                       >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-xs font-bold text-gray-300">
+                        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-xs font-bold text-gray-300 sm:h-9 sm:w-9">
                             {itemRank === 1 ? (
                               <Crown className="h-4 w-4 text-yellow-300" />
                             ) : (
@@ -672,10 +810,10 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                             <img
                               src={item.image}
                               alt={item.name || "Nominee"}
-                              className="h-10 w-10 shrink-0 rounded-xl border border-white/10 object-cover"
+                              className="h-9 w-9 shrink-0 rounded-xl border border-white/10 object-cover sm:h-10 sm:w-10"
                             />
                           ) : (
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-sm font-semibold text-gray-300">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-sm font-semibold text-gray-300 sm:h-10 sm:w-10">
                               {getInitials(item.name)}
                             </div>
                           )}
@@ -691,50 +829,20 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                           </div>
                         </div>
 
-                        <div className="relative h-16 w-16 shrink-0">
-                          <svg
-                            viewBox="0 0 64 64"
-                            className="h-full w-full -rotate-90"
-                            role="img"
-                            aria-label={`${Math.round(percentage)}% of all votes`}
-                          >
-                            <circle
-                              cx="32"
-                              cy="32"
-                              r="26"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="5"
-                              className="text-white/10"
-                            />
-                            <circle
-                              cx="32"
-                              cy="32"
-                              r="26"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="5"
-                              strokeLinecap="round"
-                              strokeDasharray={2 * Math.PI * 26}
-                              strokeDashoffset={
-                                2 *
-                                Math.PI *
-                                26 *
-                                (1 - percentage / 100)
-                              }
-                              className={`transition-[stroke-dashoffset] duration-700 ${
-                                isCurrentNominee
-                                  ? "text-emerald-300"
-                                  : itemRank === 1
-                                    ? "text-yellow-300"
-                                    : "text-emerald-500"
-                              }`}
-                            />
-                          </svg>
-                          <span className="absolute inset-0 flex items-center justify-center text-xs font-bold tabular-nums text-white">
-                            {Math.round(percentage)}%
-                          </span>
-                        </div>
+                        {/* Animated nominee vote chart */}
+
+                        <CircularProgress
+                          percentage={Math.round(percentage)}
+                          size={58}
+                          strokeWidth={5}
+                          color={
+                            isCurrentNominee
+                              ? "text-emerald-300"
+                              : itemRank === 1
+                                ? "text-yellow-300"
+                                : "text-emerald-500"
+                          }
+                        />
                       </div>
                     );
                   })}
@@ -750,17 +858,24 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
             </section>
           </div>
 
-          {/* Right content */}
-          <div className="space-y-6 xl:col-span-5">
-            {/* Achievements */}
-            <section className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/15 bg-emerald-400/[0.07]">
+          {/* --------------------------------------------------
+              RIGHT CONTENT
+          -------------------------------------------------- */}
+
+          <div className="min-w-0 w-full space-y-6 xl:col-span-5">
+
+            {/* --------------------------------------------------
+                ACHIEVEMENTS
+            -------------------------------------------------- */}
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
+              <div className="mb-6 flex min-w-0 items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-400/15 bg-emerald-400/[0.07]">
                     <Medal className="h-5 w-5 text-emerald-400" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-semibold text-white">
                       Achievements
                     </h2>
@@ -770,17 +885,17 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </div>
                 </div>
 
-                <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                <span className="shrink-0 rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-3 py-1.5 text-xs font-semibold text-emerald-300">
                   {nominee.achievements?.length ?? 0}
                 </span>
               </div>
 
               {(nominee.achievements?.length ?? 0) > 0 ? (
-                <div className="space-y-3">
+                <div className="w-full min-w-0 space-y-3">
                   {nominee.achievements?.map((achievement, index) => (
                     <div
                       key={achievement.id ?? `${achievement.project}-${index}`}
-                      className="group flex items-start gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 transition hover:border-emerald-400/20 hover:bg-emerald-400/[0.035]"
+                      className="group flex w-full min-w-0 items-start gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 transition hover:border-emerald-400/20 hover:bg-emerald-400/[0.035]"
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-400/15 bg-emerald-400/[0.08]">
                         <Award className="h-5 w-5 text-emerald-300" />
@@ -792,8 +907,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                         </p>
 
                         {achievement.created_at && (
-                          <p className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
-                            <CalendarDays className="h-3 w-3" />
+                          <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                            <CalendarDays className="h-3 w-3 shrink-0" />
                             {formatDate(achievement.created_at)}
                           </p>
                         )}
@@ -814,15 +929,18 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
               )}
             </section>
 
-            {/* Voter comments */}
-            <section className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-400/15 bg-blue-400/[0.07]">
+            {/* --------------------------------------------------
+                VOTER COMMENTS
+            -------------------------------------------------- */}
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#0b1712]/90 p-5 shadow-xl shadow-black/10 sm:p-7">
+              <div className="mb-6 flex min-w-0 items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-400/15 bg-blue-400/[0.07]">
                     <MessageCircle className="h-5 w-5 text-blue-300" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-semibold text-white">
                       Voter comments
                     </h2>
@@ -832,20 +950,20 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </div>
                 </div>
 
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-gray-400">
+                <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-gray-400">
                   {comments.length} comments
                 </span>
               </div>
 
               {comments.length > 0 ? (
-                <div className="max-h-[650px] space-y-3 overflow-y-auto pr-1">
+                <div className="max-h-[650px] w-full min-w-0 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                   {comments.map((comment, index) => (
                     <div
                       key={`${nominee.id}-comment-${index}`}
-                      className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 transition hover:border-blue-400/15 hover:bg-white/[0.04]"
+                      className="w-full min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 transition hover:border-blue-400/15 hover:bg-white/[0.04]"
                     >
                       <div className="mb-3 flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-400/[0.08]">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-400/[0.08]">
                           <MessageCircle className="h-3.5 w-3.5 text-blue-300" />
                         </div>
 
@@ -854,7 +972,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                         </span>
                       </div>
 
-                      <p className="whitespace-pre-wrap text-sm leading-7 text-gray-300">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-gray-300">
                         {comment}
                       </p>
                     </div>
@@ -873,14 +991,17 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
               )}
             </section>
 
-            {/* Profile summary */}
-            <section className="overflow-hidden rounded-[1.75rem] border border-emerald-400/15 bg-gradient-to-br from-emerald-500/[0.09] to-[#0b1712] p-6 sm:p-7">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08]">
+            {/* --------------------------------------------------
+                PROFILE SUMMARY
+            -------------------------------------------------- */}
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-emerald-400/15 bg-gradient-to-br from-emerald-500/[0.09] to-[#0b1712] p-6 sm:p-7">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08]">
                   <Sparkles className="h-5 w-5 text-emerald-300" />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-sm font-semibold text-white">
                     Profile summary
                   </h2>
@@ -890,9 +1011,9 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                 </div>
               </div>
 
-              <div className="mt-5 space-y-4">
-                <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-3">
-                  <span className="text-xs text-gray-500">
+              <div className="mt-5 min-w-0 space-y-4">
+                <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.07] pb-3">
+                  <span className="shrink-0 text-xs text-gray-500">
                     Election project
                   </span>
                   <span className="max-w-[60%] truncate text-right text-xs font-medium text-gray-200">
@@ -900,8 +1021,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-3">
-                  <span className="text-xs text-gray-500">
+                <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.07] pb-3">
+                  <span className="shrink-0 text-xs text-gray-500">
                     Nominee since
                   </span>
                   <span className="text-right text-xs font-medium text-gray-200">
@@ -909,8 +1030,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-3">
-                  <span className="text-xs text-gray-500">
+                <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.07] pb-3">
+                  <span className="shrink-0 text-xs text-gray-500">
                     Achievements
                   </span>
                   <span className="text-xs font-medium text-gray-200">
@@ -918,8 +1039,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-gray-500">
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <span className="shrink-0 text-xs text-gray-500">
                     Voter comments
                   </span>
                   <span className="text-xs font-medium text-gray-200">
@@ -931,7 +1052,10 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* --------------------------------------------------
+            FOOTER
+        -------------------------------------------------- */}
+
         <footer className="mt-8 border-t border-white/[0.07] px-3 py-7 text-center">
           <p className="text-xs leading-6 text-gray-500">
             Voting performance is based on the votes currently available
