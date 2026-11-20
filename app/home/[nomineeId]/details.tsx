@@ -15,7 +15,7 @@ import {
   Vote,
 } from "lucide-react";
 import useApp  from "@/lib/useApp";
-
+console.log(1)
 type Voter = {
   id?: string;
   nominee_id?: string;
