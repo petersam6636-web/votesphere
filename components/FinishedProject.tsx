@@ -156,7 +156,7 @@ export default function FinishedProject() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050b08] px-4 py-6 text-white sm:px-6 lg:px-10">
+    <main className="relative min-h-screen overflow-hidden  px-2 py-4 text-white sm:px-2 lg:px-4">
       {/* Ambient background */}
       <div className="pointer-events-none absolute -left-40 -top-40 h-[420px] w-[420px] rounded-full bg-emerald-500/[0.08] blur-[130px]" />
       <div className="pointer-events-none absolute -right-40 top-40 h-[420px] w-[420px] rounded-full bg-green-500/[0.07] blur-[130px]" />

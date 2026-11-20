@@ -18,6 +18,7 @@ import NavigationCustomizer, {
 interface SliderProps {
   position: NavigationPosition;
   onPositionChange: (position: NavigationPosition) => void;
+  showNomineesIndicator: boolean;
 }
 
 const navigation = [
@@ -33,6 +34,7 @@ const homePaths = ["/home", "/home/starting", "/home/register"];
 export default function Slider({
   position,
   onPositionChange,
+  showNomineesIndicator,
 }: SliderProps) {
   const pathname = usePathname();
 
@@ -77,7 +79,11 @@ const isActive = (href: string) => {
                 key={href}
                 href={href}
                 title={label}
-                aria-label={label}
+                aria-label={
+                  showNomineesIndicator && href === "/home/nominees"
+                    ? "Nominees, election activity needs attention"
+                    : label
+                }
                 aria-current={active ? "page" : undefined}
                 className={`group relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 ${
                   active
@@ -90,6 +96,13 @@ const isActive = (href: string) => {
                 )}
 
                 <Icon size={19} strokeWidth={active ? 2.2 : 1.8} />
+
+                {showNomineesIndicator && href === "/home/nominees" && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)] after:absolute after:inset-0 after:animate-ping after:rounded-full after:bg-emerald-300/70 motion-reduce:after:animate-none"
+                  />
+                )}
 
                 <span
                   className={`pointer-events-none absolute z-[60] hidden whitespace-nowrap rounded-lg border border-white/10 bg-[#111b15] px-2.5 py-1.5 text-[10px] font-medium text-white opacity-0 shadow-xl transition-all group-hover:block group-hover:opacity-100 ${tooltipPosition}`}
@@ -128,7 +141,11 @@ const isActive = (href: string) => {
             <Link
               key={href}
               href={href}
-              aria-label={label}
+              aria-label={
+                showNomineesIndicator && href === "/home/nominees"
+                  ? "Nominees, election activity needs attention"
+                  : label
+              }
               aria-current={active ? "page" : undefined}
               className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
                 active
@@ -137,6 +154,12 @@ const isActive = (href: string) => {
               }`}
             >
               <Icon size={19} strokeWidth={active ? 2.2 : 1.8} />
+              {showNomineesIndicator && href === "/home/nominees" && (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)] after:absolute after:inset-0 after:animate-ping after:rounded-full after:bg-emerald-300/70 motion-reduce:after:animate-none"
+                />
+              )}
             </Link>
           );
         })}

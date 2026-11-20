@@ -4,6 +4,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Slider from "./Slider";
 import type { NavigationPosition } from "./NavigationCustomizer";
+import useApp from "@/lib/useApp";
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -12,8 +13,11 @@ interface DashboardShellProps {
 const STORAGE_KEY = "votesphere-navigation-position";
 
 export default function DashboardShell({ children }: DashboardShellProps) {
+  const { taskKey, project } = useApp();
   const [position, setPosition] = useState<NavigationPosition>("left");
   const [ready, setReady] = useState(false);
+  const showNomineesIndicator =
+    taskKey === true && Boolean(project?.length);
 
   useEffect(() => {
     let savedPosition: NavigationPosition | null = null;
@@ -55,6 +59,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       <Slider
         position={position}
         onPositionChange={changePosition}
+        showNomineesIndicator={showNomineesIndicator}
       />
 
       <main
