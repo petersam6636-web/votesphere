@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import Slider from "./Slider";
 import type { NavigationPosition } from "./NavigationCustomizer";
 import useApp from "@/lib/useApp";
@@ -14,10 +15,15 @@ const STORAGE_KEY = "votesphere-navigation-position";
 
 export default function DashboardShell({ children }: DashboardShellProps) {
   const { taskKey, project } = useApp();
+  const pathname = usePathname();
+
   const [position, setPosition] = useState<NavigationPosition>("left");
   const [ready, setReady] = useState(false);
+
   const showNomineesIndicator =
-    taskKey === true && Boolean(project?.length);
+    taskKey === true &&
+    Boolean(project && project.length > 0) &&
+    pathname === "/home";
 
   useEffect(() => {
     let savedPosition: NavigationPosition | null = null;

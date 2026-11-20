@@ -38,16 +38,16 @@ export default function Slider({
 }: SliderProps) {
   const pathname = usePathname();
 
+  const isActive = (href: string) => {
+    if (href === "/home") {
+      return homePaths.includes(pathname);
+    }
 
-const isActive = (href: string) => {
-  if (href === "/home") {
-    return homePaths.includes(pathname);
-  }
-
-  return pathname === href || pathname.startsWith(`${href}/`);
-};
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const vertical = position !== "bottom";
+
   const tooltipPosition =
     position === "left"
       ? "left-full top-1/2 ml-3 -translate-y-1/2"
@@ -147,13 +147,14 @@ const isActive = (href: string) => {
                   : label
               }
               aria-current={active ? "page" : undefined}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+              className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
                 active
                   ? "bg-emerald-400/15 text-emerald-300"
                   : "text-zinc-500 hover:bg-white/[0.05] hover:text-white"
               }`}
             >
               <Icon size={19} strokeWidth={active ? 2.2 : 1.8} />
+
               {showNomineesIndicator && href === "/home/nominees" && (
                 <span
                   aria-hidden="true"
