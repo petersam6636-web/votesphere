@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Award,
   CalendarDays,
+  ChartNoAxesColumnIncreasing,
   CheckCircle2,
   Clock3,
   Crown,
