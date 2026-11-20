@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -14,8 +14,10 @@ import {
   Users,
   Vote,
 } from "lucide-react";
-import useApp  from "@/lib/useApp";
-console.log(1)
+import { supabase } from "@/lib/supabase-client";
+import useApp from "@/lib/useApp";
+import ProjectLoading from "@/components/ProjectLoading";
+
 type Voter = {
   id?: string;
   nominee_id?: string;
@@ -49,19 +51,15 @@ type Project = {
   nominees?: Nominee[] | null;
 };
 
+type ProjectLookup = {
+  nomineeId: string;
+  project: Project | null;
+  error: string;
+};
+
 type DetailsProps = {
   nomineeId: string;
 };
-
-function getTimestamp(date?: string | null): number {
-  if (!date) return Number.MAX_SAFE_INTEGER;
-
-  const timestamp = new Date(date).getTime();
-
-  return Number.isNaN(timestamp)
-    ? Number.MAX_SAFE_INTEGER
-    : timestamp;
-}
 
 function formatDate(date?: string | null): string {
   if (!date) return "Date unavailable";
@@ -81,20 +79,95 @@ function formatDate(date?: string | null): string {
 
 export default function DetailsPage({ nomineeId }: DetailsProps) {
   const { project } = useApp();
+  const [lookup, setLookup] = useState<ProjectLookup>({
+    nomineeId: "",
+    project: null,
+    error: "",
+  });
+
+  const contextProject = useMemo(
+    () =>
+      ((project ?? []) as Project[]).find((item) =>
+        item.nominees?.some((nominee) => nominee.id === nomineeId)
+      ) ?? null,
+    [project, nomineeId]
+  );
+
+  useEffect(() => {
+    if (contextProject || lookup.nomineeId === nomineeId) return;
+
+    let active = true;
+
+    const loadProject = async () => {
+      let loadedProject: Project | null = null;
+      let errorMessage = "";
+
+      try {
+        const { data: nomineeRecord, error: nomineeError } = await supabase
+          .from("nominees")
+          .select("project_id")
+          .eq("id", nomineeId)
+          .maybeSingle();
+
+        if (nomineeError) throw nomineeError;
+        if (!nomineeRecord) {
+          throw new Error("This nominee could not be found.");
+        }
+
+        const { data: projectRecord, error: projectError } = await supabase
+          .from("projects")
+          .select(`
+            *,
+            nominees (
+              *,
+              achievements (*),
+              voters (*)
+            )
+          `)
+          .eq("id", nomineeRecord.project_id)
+          .eq("deleted", false)
+          .maybeSingle();
+
+        if (projectError) throw projectError;
+        if (!projectRecord) {
+          throw new Error("The project for this nominee could not be found.");
+        }
+
+        loadedProject = projectRecord as Project;
+      } catch (error: unknown) {
+        errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Unable to load this nominee.";
+      }
+
+      if (active) {
+        setLookup({
+          nomineeId,
+          project: loadedProject,
+          error: errorMessage,
+        });
+      }
+    };
+
+    void loadProject();
+
+    return () => {
+      active = false;
+    };
+  }, [contextProject, lookup.nomineeId, nomineeId]);
+
+  const currentProject =
+    contextProject ??
+    (lookup.nomineeId === nomineeId ? lookup.project : null);
+  const isLoading =
+    !contextProject && lookup.nomineeId !== nomineeId;
+  const lookupError =
+    lookup.nomineeId === nomineeId ? lookup.error : "";
 
   const result = useMemo(() => {
-    const projects = ((project ?? []) as Project[])
-      .slice()
-      .sort(
-        (a, b) =>
-          getTimestamp(a.created_at) - getTimestamp(b.created_at)
-      );
-
-    const currentProject = projects[0] ?? null;
-
     if (!currentProject) {
       return {
-        currentProject: null,
         nominee: null,
         rankedNominees: [] as Nominee[],
         rank: 0,
@@ -148,7 +221,6 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
         : 0;
 
     return {
-      currentProject,
       nominee,
       rankedNominees,
       rank,
@@ -158,10 +230,9 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
       progress,
       voteShare,
     };
-  }, [project, nomineeId]);
+  }, [currentProject, nomineeId]);
 
   const {
-    currentProject,
     nominee,
     rankedNominees,
     rank,
@@ -176,7 +247,11 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
     .map((voter) => voter.comment?.trim())
     .filter((comment): comment is string => Boolean(comment));
 
-  if (!project || project.length === 0) {
+  if (isLoading) {
+    return <ProjectLoading />;
+  }
+
+  if (!currentProject) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden  px-2 py-2 text-white">
         <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
@@ -191,8 +266,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
           </h1>
 
           <p className="mt-2 text-sm leading-6 text-gray-400">
-            The project information is not currently available. Please return
-            to your dashboard and try again.
+            {lookupError ||
+              "The project information is not currently available. Please return to your dashboard and try again."}
           </p>
 
           <Link
