@@ -264,6 +264,8 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
     voteShare,
   } = result;
 
+  const topNominees = rankedNominees.slice(0, 3);
+
   const comments = (nominee?.voters ?? [])
     .map((voter) => voter.comment?.trim())
     .filter((comment): comment is string => Boolean(comment));
@@ -618,26 +620,26 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
 
                   <div>
                     <h2 className="text-base font-semibold text-white">
-                      Election leaderboard
+                      Election dashboard
                     </h2>
                     <p className="mt-1 text-xs text-gray-500">
-                      Vote distribution among all nominees
+                      Top nominees ranked by votes received
                     </p>
                   </div>
                 </div>
 
                 <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-gray-400">
-                  {rankedNominees.length} nominees
+                  Showing {topNominees.length} of {rankedNominees.length}
                 </span>
               </div>
 
-              {rankedNominees.length > 0 ? (
+              {topNominees.length > 0 ? (
                 <div className="space-y-4">
-                  {rankedNominees.map((item, index) => {
+                  {topNominees.map((item) => {
                     const itemVotes = item.voters?.length ?? 0;
                     const percentage =
                       totalVotes > 0
-                        ? Math.round((itemVotes / totalVotes) * 100)
+                        ? (itemVotes / totalVotes) * 100
                         : 0;
 
                     const isCurrentNominee = item.id === nominee.id;
@@ -651,13 +653,13 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                     return (
                       <div
                         key={item.id}
-                        className={`rounded-2xl border p-4 transition ${
+                        className={`flex items-center justify-between gap-4 rounded-2xl border p-4 transition ${
                           isCurrentNominee
                             ? "border-emerald-400/25 bg-emerald-400/[0.055]"
                             : "border-white/[0.06] bg-white/[0.02]"
                         }`}
                       >
-                        <div className="mb-3 flex items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-xs font-bold text-gray-300">
                             {itemRank === 1 ? (
                               <Crown className="h-4 w-4 text-yellow-300" />
@@ -683,33 +685,55 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
                               {item.name || "Unnamed nominee"}
                             </p>
                             <p className="mt-0.5 text-[11px] text-gray-500">
-                              {itemVotes} votes
+                              {itemVotes.toLocaleString()}{" "}
+                              {itemVotes === 1 ? "vote" : "votes"}
                             </p>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-sm font-bold tabular-nums text-white">
-                              {percentage}%
-                            </p>
-                            {isCurrentNominee && (
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                                Current profile
-                              </span>
-                            )}
                           </div>
                         </div>
 
-                        <div className="h-2 overflow-hidden rounded-full bg-black/40">
-                          <div
-                            className={`h-full rounded-full transition-all duration-700 ${
-                              isCurrentNominee
-                                ? "bg-gradient-to-r from-emerald-600 to-emerald-300"
-                                : index === 0
-                                  ? "bg-gradient-to-r from-yellow-600 to-yellow-300"
-                                  : "bg-gradient-to-r from-gray-600 to-gray-400"
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
+                        <div className="relative h-16 w-16 shrink-0">
+                          <svg
+                            viewBox="0 0 64 64"
+                            className="h-full w-full -rotate-90"
+                            role="img"
+                            aria-label={`${Math.round(percentage)}% of all votes`}
+                          >
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="26"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="5"
+                              className="text-white/10"
+                            />
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="26"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="5"
+                              strokeLinecap="round"
+                              strokeDasharray={2 * Math.PI * 26}
+                              strokeDashoffset={
+                                2 *
+                                Math.PI *
+                                26 *
+                                (1 - percentage / 100)
+                              }
+                              className={`transition-[stroke-dashoffset] duration-700 ${
+                                isCurrentNominee
+                                  ? "text-emerald-300"
+                                  : itemRank === 1
+                                    ? "text-yellow-300"
+                                    : "text-emerald-500"
+                              }`}
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-xs font-bold tabular-nums text-white">
+                            {Math.round(percentage)}%
+                          </span>
                         </div>
                       </div>
                     );

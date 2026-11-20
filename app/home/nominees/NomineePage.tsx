@@ -653,7 +653,7 @@ export default function NomineesPage() {
 
               <p className="mt-1 text-xs leading-5 text-white/40">
                 You have has already submitted a vote for this election.
-                You cannot vote again fornthis election.
+                You cannot vote again for this election.
               </p>
             </div>
           </div>
