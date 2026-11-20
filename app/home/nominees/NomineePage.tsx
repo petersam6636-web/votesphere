@@ -276,8 +276,15 @@ export default function NomineesPage() {
     return () => window.clearTimeout(timeout);
   }, [successMessage]);
 
-  const nominees = currentProject?.nominees ?? [];
+// Sort nominees by highest vote count first.
+const nominees = useMemo(() => {
+  return [...(currentProject?.nominees ?? [])].sort((a, b) => {
+    const votesA = a.voters?.length ?? 0;
+    const votesB = b.voters?.length ?? 0;
 
+    return votesB - votesA;
+  });
+}, [currentProject?.nominees]);
   const totalVotes = nominees.reduce(
     (total, nominee) => total + (nominee.voters?.length ?? 0),
     0
