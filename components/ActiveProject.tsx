@@ -426,15 +426,10 @@ export default function ActiveProject() {
 
   const nominees = activeProject.nominees ?? [];
   const topNominees = nominees
-    .map((nominee, originalIndex) => ({
-      nominee,
-      originalIndex,
-      voteCount: nominee.voters?.length ?? 0,
-    }))
+    .slice()
     .sort(
       (a, b) =>
-        b.voteCount - a.voteCount ||
-        a.originalIndex - b.originalIndex
+        (b.voters?.length ?? 0) - (a.voters?.length ?? 0)
     )
     .slice(0, 3);
 
@@ -915,7 +910,7 @@ export default function ActiveProject() {
           </div>
         ) : (
           <div className="space-y-4">
-            {topNominees.map(({ nominee, voteCount }, index) => (
+            {topNominees.map((nominee, index) => (
               <article
                 key={nominee.id}
                 className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0d1310]"
@@ -954,7 +949,7 @@ export default function ActiveProject() {
                     />
 
                     <span className="text-sm font-bold text-emerald-300">
-                      {voteCount}
+                      {nominee.voters?.length ?? 0}
                     </span>
 
                     <span className="text-[11px] text-zinc-500">
@@ -991,11 +986,11 @@ export default function ActiveProject() {
                     </h3>
 
                     <span className="text-[10px] text-zinc-600">
-                      ({voteCount})
+                      ({nominee.voters?.length ?? 0})
                     </span>
                   </div>
 
-                  {!voteCount ? (
+                  {!nominee.voters?.length ? (
                     <p className="text-xs text-zinc-600">
                       No voters recorded for this nominee yet.
                     </p>
