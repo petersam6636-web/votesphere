@@ -337,7 +337,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
   const isWinner = rank === 1;
 
   return (
-    <main className="relative min-h-screen overflow-hidden  px-2 py-5 text-white sm:px-6 lg:px-8">
+    <main className="relative min-h-screen overflow-hidden  px-1 py-5 text-white sm:px-6 lg:px-8">
       {/* Background decoration */}
       {/* <div className="pointer-events-none fixed -left-40 top-0 h-[30rem] w-[30rem] rounded-full bg-emerald-500/[0.07] blur-[140px]" />
       <div className="pointer-events-none fixed -right-40 top-1/3 h-[30rem] w-[30rem] rounded-full bg-green-500/[0.06] blur-[140px]" />
@@ -352,7 +352,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
               className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.035] px-4 py-2 text-xs font-medium text-gray-300 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to dashboard
+              Back to nominees
             </Link>
 
             <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-emerald-400">

@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { gsap } from "gsap";
 import {
   ArrowLeft,
   ArrowRight,
@@ -103,6 +102,67 @@ function getProjectWinners(nominees: Nominee[]): Nominee[] {
   );
 }
 
+async function deleteProjectAndRelatedData(
+  projectId: string,
+  userId: string
+): Promise<void> {
+  const { data: ownedProject, error: ownershipError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (ownershipError) throw ownershipError;
+  if (!ownedProject) {
+    throw new Error("The project could not be found or you do not have permission to delete it.");
+  }
+
+  const { data: nominees, error: nomineeLookupError } = await supabase
+    .from("nominees")
+    .select("id")
+    .eq("project_id", projectId);
+
+  if (nomineeLookupError) throw nomineeLookupError;
+
+  const nomineeIds = (nominees ?? []).map((nominee) => nominee.id);
+
+  if (nomineeIds.length > 0) {
+    const { error: voterError } = await supabase
+      .from("voters")
+      .delete()
+      .in("nominee_id", nomineeIds);
+
+    if (voterError) throw voterError;
+
+    const { error: achievementError } = await supabase
+      .from("achievements")
+      .delete()
+      .in("nominee_id", nomineeIds);
+
+    if (achievementError) throw achievementError;
+
+    const { error: nomineeDeleteError } = await supabase
+      .from("nominees")
+      .delete()
+      .eq("project_id", projectId);
+
+    if (nomineeDeleteError) throw nomineeDeleteError;
+  }
+
+  const { data: deletedProject, error: projectDeleteError } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .select("id");
+
+  if (projectDeleteError) throw projectDeleteError;
+  if (!deletedProject?.length) {
+    throw new Error("The project could not be deleted. Check your permissions.");
+  }
+}
+
 export default function HistoryPage() {
   const {
     project,
@@ -123,8 +183,11 @@ export default function HistoryPage() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(
     null
   );
+  const [showDeleteAllConfirmation, setShowDeleteAllConfirmation] =
+    useState(false);
 
   const [deleting, setDeleting] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -132,31 +195,6 @@ export default function HistoryPage() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Animate the active section whenever the user changes sections.
-  useEffect(() => {
-    if (!panelRef.current) return;
-
-    gsap.killTweensOf(panelRef.current);
-
-    gsap.fromTo(
-      panelRef.current,
-      {
-        opacity: 0,
-        y: 100,
-      },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.2,
-        ease: "power2.out",
-      }
-    );
-
-    return () => {
-      if (panelRef.current) {
-        gsap.killTweensOf(panelRef.current);
-      }
-    };
-  }, [section, selectedProjectId]);
 
   // Exclude the project with the earliest valid creation date.
   const historyProjects = useMemo(() => {
@@ -179,6 +217,32 @@ export default function HistoryPage() {
 
     return projects.filter((item) => item.id !== oldestProject.id);
   }, [project]);
+
+  const activeProjectId = useMemo(() => {
+    const projects = project ?? [];
+
+    if (projects.length === 0) return null;
+
+    const earliestProject = [...projects].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      const timestampA = Number.isFinite(dateA)
+        ? dateA
+        : Number.POSITIVE_INFINITY;
+      const timestampB = Number.isFinite(dateB)
+        ? dateB
+        : Number.POSITIVE_INFINITY;
+
+      return timestampA - timestampB;
+    })[0];
+
+    return earliestProject?.id ?? null;
+  }, [project]);
+
+  const projectsToDelete = useMemo(
+    () => historyProjects.filter((item) => item.id !== activeProjectId),
+    [historyProjects, activeProjectId]
+  );
 
   // Search history projects.
   const filteredProjects = useMemo(() => {
@@ -272,61 +336,7 @@ export default function HistoryPage() {
 
     try {
       const projectId = projectToDelete.id;
-
-      // First, retrieve every nominee belonging to this project.
-      const { data: nominees, error: nomineeLookupError } = await supabase
-        .from("nominees")
-        .select("id")
-        .eq("project_id", projectId);
-
-      if (nomineeLookupError) throw nomineeLookupError;
-
-      const nomineeIds = (nominees ?? []).map(
-        (nominee: { id: string }) => nominee.id
-      );
-
-      // Remove all associated voter records.
-      if (nomineeIds.length > 0) {
-        const { error: voterError } = await supabase
-          .from("voters")
-          .delete()
-          .in("nominee_id", nomineeIds);
-
-        if (voterError) throw voterError;
-
-        // Remove all associated achievement records.
-        const { error: achievementError } = await supabase
-          .from("achievements")
-          .delete()
-          .in("nominee_id", nomineeIds);
-
-        if (achievementError) throw achievementError;
-
-        // Remove the project's nominees.
-        const { error: nomineeDeleteError } = await supabase
-          .from("nominees")
-          .delete()
-          .eq("project_id", projectId);
-
-        if (nomineeDeleteError) throw nomineeDeleteError;
-      }
-
-      // Finally, delete the project itself.
-      const { data: deletedProject, error: projectDeleteError } =
-        await supabase
-          .from("projects")
-          .delete()
-          .eq("id", projectId)
-          .eq("user_id", userInfo)
-          .select("id");
-
-      if (projectDeleteError) throw projectDeleteError;
-
-      if (!deletedProject || deletedProject.length === 0) {
-        throw new Error(
-          "The project could not be deleted. Check your permissions."
-        );
-      }
+      await deleteProjectAndRelatedData(projectId, userInfo);
 
       // Update the shared application state.
       setProject((current) =>
@@ -354,15 +364,74 @@ export default function HistoryPage() {
     }
   };
 
+  const handleDeleteAllHistory = async () => {
+    if (!userInfo) {
+      setError("Unable to verify the project owner.");
+      return;
+    }
+
+    const targets = projectsToDelete;
+
+    if (targets.length === 0) {
+      setShowDeleteAllConfirmation(false);
+      setSuccess("There are no historical projects to delete.");
+      return;
+    }
+
+    setDeletingAll(true);
+    setError("");
+    setSuccess("");
+
+    const deletedIds: string[] = [];
+
+    try {
+      for (const item of targets) {
+        await deleteProjectAndRelatedData(item.id, userInfo);
+        deletedIds.push(item.id);
+
+        setProject((current) =>
+          (current ?? []).filter((projectItem) => projectItem.id !== item.id)
+        );
+      }
+
+      setSelectedProjectId(null);
+      setOpenMenuId(null);
+      setSection("select");
+      setShowDeleteAllConfirmation(false);
+      setSuccess(
+        `${deletedIds.length} historical ${
+          deletedIds.length === 1 ? "project was" : "projects were"
+        } deleted. Your current election was kept.`
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred.";
+
+      setError(
+        deletedIds.length > 0
+          ? `Deleted ${deletedIds.length} of ${targets.length} projects. The remaining projects were kept. ${message}`
+          : `No projects were deleted. ${message}`
+      );
+
+      if (deletedIds.length > 0) {
+        setShowDeleteAllConfirmation(false);
+      }
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   return (
-    <main className="relative min-h-screen overflow-hidden px-3 py-5 text-white sm:px-5 lg:px-8">
+    <main className="relative min-h-screen overflow-hidden px-1 py-5 text-white sm:px-3 ">
 
       {/* Ambient background */}
-      <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-[130px]" />
+      {/* <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-[130px]" />
 
       <div className="pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full bg-green-500/[0.07] blur-[140px]" />
 
-      <div className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:radial-gradient(#a7f3d0_1px,transparent_1px)] [background-size:25px_25px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:radial-gradient(#a7f3d0_1px,transparent_1px)] [background-size:25px_25px]" /> */}
 
       <div className="relative z-10 mx-auto w-full max-w-6xl">
 
@@ -481,25 +550,42 @@ export default function HistoryPage() {
                 </p>
 
                 <p className="mt-1 text-sm text-white/60">
-                  {historyProjects.length}{" "}
-                  {historyProjects.length === 1 ? "project" : "projects"}{" "}
+                  {projectsToDelete.length}{" "}
+                  {projectsToDelete.length === 1 ? "project" : "projects"}{" "}
                   available in history
                 </p>
               </div>
 
-              <div className="relative w-full sm:max-w-xs">
-                <Search
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative w-full sm:max-w-xs">
+                  <Search
+                    size={16}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                  />
 
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search your projects..."
-                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.025] py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/40 focus:bg-emerald-400/[0.025]"
-                />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search your projects..."
+                    className="w-full rounded-xl border border-white/[0.08] bg-white/[0.025] py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/40 focus:bg-emerald-400/[0.025]"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  disabled={projectsToDelete.length === 0 || deletingAll}
+                  onClick={() => {
+                    setProjectToDelete(null);
+                    setError("");
+                    setSuccess("");
+                    setShowDeleteAllConfirmation(true);
+                  }}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm font-medium text-red-300 transition hover:border-red-400/35 hover:bg-red-400/[0.12] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Trash2 size={15} />
+                  Delete all
+                </button>
               </div>
 
             </section>
@@ -1387,6 +1473,93 @@ export default function HistoryPage() {
 
         </div>
 
+      )}
+
+      {showDeleteAllConfirmation && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deletingAll) {
+              setShowDeleteAllConfirmation(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-all-title"
+            className="w-full max-w-md overflow-hidden rounded-3xl border border-red-400/20 bg-[#0b1711] shadow-[0_25px_100px_rgba(0,0,0,0.65)]"
+          >
+            <div className="border-b border-white/[0.07] p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-400/20 bg-red-400/[0.09] text-red-300">
+                  <AlertTriangle size={22} />
+                </div>
+
+                <button
+                  type="button"
+                  disabled={deletingAll}
+                  onClick={() => setShowDeleteAllConfirmation(false)}
+                  aria-label="Close delete all confirmation"
+                  className="rounded-lg p-2 text-white/35 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
+                >
+                  <X size={19} />
+                </button>
+              </div>
+
+              <h3
+                id="delete-all-title"
+                className="mt-5 text-xl font-semibold text-white"
+              >
+                Delete all history projects?
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-white/45">
+                This will permanently delete {projectsToDelete.length}{" "}
+                {projectsToDelete.length === 1 ? "project" : "projects"} and
+                their nominees, achievements, votes, and voter comments.
+              </p>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] p-4 text-xs leading-5 text-emerald-200/75">
+                Your current election will be kept and will not be deleted.
+              </div>
+
+              <p className="text-xs leading-5 text-white/30">
+                This action cannot be undone.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => void handleDeleteAllHistory()}
+                disabled={deletingAll || projectsToDelete.length === 0}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingAll ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Deleting projects...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete all history projects
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                disabled={deletingAll}
+                onClick={() => setShowDeleteAllConfirmation(false)}
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm font-medium text-white/55 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
       )}
 
     </main>
