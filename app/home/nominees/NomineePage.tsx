@@ -18,26 +18,7 @@ import {
 
 import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
-import type { Project } from "@/types/project";
-
-type Voter = {
-  id: string;
-  nominee_id: string;
-  project_id: string;
-  name: string | null;
-  comment: string | null;
-};
-
-type Nominee = {
-  id: string;
-  name: string | null;
-  description?: string | null;
-  voters?: Voter[] | null;
-};
-
-type ElectionProject = Omit<Project, "nominees"> & {
-  nominees?: Nominee[] | null;
-};
+import type { Nominee, Project } from "@/types/project";
 
 type VoteForm = {
   name: string;
@@ -80,7 +61,7 @@ export default function NomineesPage() {
   const { taskKey, project, setProject } = useApp();
 
   const [currentProject, setCurrentProject] =
-    useState<ElectionProject | null>(null);
+    useState<Project | null>(null);
 
   const [loadingProject, setLoadingProject] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -101,7 +82,7 @@ export default function NomineesPage() {
 
   // Select the earliest-created project.
   const selectedProject = useMemo(() => {
-    const allProjects = (project ?? []) as ElectionProject[];
+    const allProjects = project ?? [];
 
     if (allProjects.length === 0) return null;
 
@@ -141,18 +122,18 @@ export default function NomineesPage() {
         throw new Error("Unable to find the current election.");
       }
 
-      const updatedProject = data as ElectionProject;
+      const updatedProject = data as Project;
 
       setCurrentProject(updatedProject);
 
       setProject((previousProjects) => {
         if (!previousProjects) {
-          return [updatedProject as Project];
+          return [updatedProject];
         }
 
         return previousProjects.map((item) =>
           item.id === updatedProject.id
-            ? (updatedProject as Project)
+            ? updatedProject
             : item
         );
       });
@@ -701,7 +682,7 @@ const nominees = useMemo(() => {
                         Description
                       </p>
                       <p className="min-h-[48px] whitespace-pre-wrap break-words text-sm leading-6 text-white/50">
-                        {nominee.description ||
+                        {nominee.manifesto ||
                           "This nominee has not provided a description yet."}
                       </p>
                     </div>
