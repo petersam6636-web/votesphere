@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,21 +7,29 @@ import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
 
 import NoProject from "@/components/NoProject";
-import ActiveProject, { type Project } from "@/components/ActiveProject";
+import ActiveProject from "@/components/ActiveProject";
 import FinishedProject from "@/components/FinishedProject";
 import ProjectLoading from "@/components/ProjectLoading";
 
+import type { Project } from "@/types/project";
+
 export default function HomePage() {
-  const { userInfo, setUserInfo } = useApp();
+  const {
+    userInfo,
+    setUserInfo,
+    project,
+    setProject,
+    taskKey,
+    setTaskKey,
+  } = useApp();
+
   const router = useRouter();
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [taskKey, setTaskKey] = useState<boolean | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Get the authenticated user.
+  // Verify the authenticated user.
   useEffect(() => {
     let active = true;
 
@@ -49,6 +56,7 @@ export default function HomePage() {
             ? err.message
             : "Unable to verify your account."
         );
+
         setLoading(false);
       }
     };
@@ -60,7 +68,7 @@ export default function HomePage() {
     };
   }, [setUserInfo, router]);
 
-  // Find the task and project belonging to this user.
+  // Fetch the user's tasks and projects with their nominees and achievements.
   useEffect(() => {
     if (!authReady || !userInfo) return;
 
@@ -76,16 +84,21 @@ export default function HomePage() {
             .from("tasks")
             .select("key")
             .eq("user_id", userInfo)
+            .limit(1)
             .maybeSingle(),
 
           supabase
             .from("projects")
-            .select("id, name, description")
+            .select(`
+              *,
+              nominees (
+                *,
+                achievements (*)
+              )
+            `)
             .eq("user_id", userInfo)
             .eq("deleted", false)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle(),
+            .order("created_at", { ascending: true }),
         ]);
 
         if (taskResult.error) throw taskResult.error;
@@ -93,18 +106,16 @@ export default function HomePage() {
 
         if (!active) return;
 
-        // Missing task record is treated as key = false.
         setTaskKey(taskResult.data?.key === true);
 
-        // No matching project results in null.
-        setProject(projectResult.data as Project | null);
+        setProject((projectResult.data ?? []) as Project[]);
       } catch (err: unknown) {
         if (!active) return;
 
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to load your project."
+            : "Unable to load your projects."
         );
       } finally {
         if (active) setLoading(false);
@@ -116,7 +127,7 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, [authReady, userInfo]);
+  }, [authReady, userInfo, setProject, setTaskKey]);
 
   if (loading || !authReady || taskKey === null) {
     return <ProjectLoading />;
@@ -132,26 +143,21 @@ export default function HomePage() {
     );
   }
 
-  // CONDITION 1:
-  // key is false and no project exists.
-  if (taskKey === false && !project) {
+  // No project and voting has not been activated.
+  if (taskKey === false && (!project || project.length === 0)) {
     return <NoProject />;
   }
 
-  // CONDITION 2:
-  // key is false and a project exists.
-  if (taskKey === false && project) {
+  // Project exists, but voting has not been activated.
+  if (taskKey === false && project && project.length > 0) {
     return <FinishedProject project={project} />;
   }
 
-  // CONDITION 3:
-  // key is true and a project exists.
-  if (taskKey === true && project) {
+  // Voting has been activated and projects exist.
+  if (taskKey === true && project && project.length > 0) {
     return <ActiveProject project={project} />;
   }
 
-  // Invalid database combination:
-  // key is true but no project exists.
   return (
     <div className="flex min-h-[50vh] items-center justify-center px-4">
       <p className="text-center text-sm text-amber-300">

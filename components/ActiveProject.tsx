@@ -8,7 +8,7 @@ export type Project = {
 };
 
 type ActiveProjectProps = {
-  project: Project;
+  project: Project[];
 };
 
 export default function ActiveProject({
@@ -16,7 +16,11 @@ export default function ActiveProject({
 }: ActiveProjectProps) {
   return (
     <div className="w-full space-y-4">
-      <section className="relative overflow-hidden rounded-3xl border border-emerald-400/15 bg-gradient-to-br from-[#103323] via-[#0c1c14] to-[#0b110e] p-6">
+      {project.map((item) => (
+        <section
+          key={item.id}
+          className="relative overflow-hidden rounded-3xl border border-emerald-400/15 bg-gradient-to-br from-[#103323] via-[#0c1c14] to-[#0b110e] p-6"
+        >
         <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-emerald-400/[0.08] blur-[70px]" />
 
         <div className="relative">
@@ -26,12 +30,12 @@ export default function ActiveProject({
           </div>
 
           <h1 className="mt-4 text-2xl font-bold text-white sm:text-3xl">
-            {project.name}
+            {item.name}
             <span className="text-emerald-400">.</span>
           </h1>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">
-            {project.description || "Your election project is currently active."}
+            {item.description || "Your election project is currently active."}
           </p>
 
           <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.08] px-4 py-2 text-xs font-medium text-emerald-300">
@@ -39,7 +43,8 @@ export default function ActiveProject({
             Voting is in progress
           </div>
         </div>
-      </section>
+        </section>
+      ))}
 
       <section className="rounded-2xl border border-white/[0.07] bg-[#0d1310] p-5">
         <div className="flex items-center gap-3">
