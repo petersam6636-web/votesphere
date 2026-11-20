@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { LoaderCircle, AlertCircle } from "lucide-react";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
+import { ensureUserTask } from "@/lib/tasks";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -74,6 +75,8 @@ export default function AuthCallbackPage() {
             );
           }
 
+          await ensureUserTask(data.session.user.id);
+
           router.replace(destination);
           router.refresh();
 
@@ -99,6 +102,8 @@ export default function AuthCallbackPage() {
             return;
           }
 
+          await ensureUserTask(data.session.user.id);
+
           router.replace(destination);
           router.refresh();
 
@@ -118,6 +123,8 @@ export default function AuthCallbackPage() {
         }
 
         if (session) {
+          await ensureUserTask(session.user.id);
+
           router.replace(destination);
           router.refresh();
 

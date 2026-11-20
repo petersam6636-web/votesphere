@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
+import { ensureUserTask } from "@/lib/tasks";
 
 import NoProject from "@/components/NoProject";
 import ActiveProject from "@/components/ActiveProject";
@@ -47,6 +48,7 @@ export default function HomePage() {
         if (!active) return;
 
         setUserInfo(data.user.id);
+        await ensureUserTask(data.user.id);
         setAuthReady(true);
       } catch (err: unknown) {
         if (!active) return;

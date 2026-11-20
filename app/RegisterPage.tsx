@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
+import { ensureUserTask } from "@/lib/tasks";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -70,6 +71,19 @@ export default function RegisterPage() {
           );
         }
 
+        return false;
+      }
+
+      try {
+        await ensureUserTask(data.user.id);
+      } catch (taskError: unknown) {
+        if (showError && mountedRef.current) {
+          setError(
+            taskError instanceof Error
+              ? taskError.message
+              : "Unable to initialize your VoteSphere workspace."
+          );
+        }
         return false;
       }
 

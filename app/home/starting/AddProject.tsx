@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase-client";
@@ -8,14 +9,48 @@ import useApp from "@/lib/useApp";
 
 import ProjectLoading from "@/components/ProjectLoading";
 
-type DurationUnit = "minutes" | "hours" | "days" | "years";
+type DurationUnit = "minutes" | "hours" | "days" | "weeks";
+
+type DurationPreset = {
+  label: string;
+  description: string;
+  value: number;
+  unit: DurationUnit;
+};
 
 const durationMultipliers: Record<DurationUnit, number> = {
   minutes: 60 * 1000,
   hours: 60 * 60 * 1000,
   days: 24 * 60 * 60 * 1000,
-  years: 365 * 24 * 60 * 60 * 1000,
+  weeks: 7 * 24 * 60 * 60 * 1000,
 };
+
+const durationPresets: DurationPreset[] = [
+  {
+    label: "24 hours",
+    description: "Quick election",
+    value: 24,
+    unit: "hours",
+  },
+  {
+    label: "3 days",
+    description: "Recommended",
+    value: 3,
+    unit: "days",
+  },
+  {
+    label: "7 days",
+    description: "More time to participate",
+    value: 7,
+    unit: "days",
+  },
+  {
+    label: "14 days",
+    description: "Extended election",
+    value: 14,
+    unit: "days",
+  },
+];
 
 export default function CreateProjectPage() {
   const router = useRouter();
@@ -26,11 +61,20 @@ export default function CreateProjectPage() {
     setProjectDetails,
     setCurrentProject,
     setProject,
+    setTaskKey,
   } = useApp();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("1");
+
+  // Three days is the default election duration.
+  const [durationMode, setDurationMode] = useState<"preset" | "custom">(
+    "preset"
+  );
+
+  const [selectedPreset, setSelectedPreset] = useState("3 days");
+
+  const [duration, setDuration] = useState("3");
   const [unit, setUnit] = useState<DurationUnit>("days");
 
   const [loading, setLoading] = useState(true);
@@ -74,8 +118,33 @@ export default function CreateProjectPage() {
     };
   }, [router, setUserInfo]);
 
+  const getDurationInMilliseconds = () => {
+    if (durationMode === "preset") {
+      const preset = durationPresets.find(
+        (item) => item.label === selectedPreset
+      );
+
+      if (!preset) {
+        throw new Error("Please select a valid election duration.");
+      }
+
+      return preset.value * durationMultipliers[preset.unit];
+    }
+
+    const durationNumber = Number(duration);
+
+    if (
+      !Number.isFinite(durationNumber) ||
+      durationNumber <= 0
+    ) {
+      throw new Error("Please enter a valid custom duration.");
+    }
+
+    return durationNumber * durationMultipliers[unit];
+  };
+
   const handleCreateProject = async (
-    event: React.FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
@@ -84,15 +153,8 @@ export default function CreateProjectPage() {
       return;
     }
 
-    const durationNumber = Number(duration);
-
     if (!name.trim()) {
       setError("Please enter a project name.");
-      return;
-    }
-
-    if (!Number.isFinite(durationNumber) || durationNumber <= 0) {
-      setError("Please enter a valid project duration.");
       return;
     }
 
@@ -101,7 +163,7 @@ export default function CreateProjectPage() {
 
     try {
       const durationMs =
-        Date.now() + durationNumber * durationMultipliers[unit];
+        Date.now() + getDurationInMilliseconds();
 
       const projectDetails = {
         name: name.trim(),
@@ -109,6 +171,7 @@ export default function CreateProjectPage() {
         duration_ms: durationMs,
       };
 
+      // STEP 1: Create the project.
       const { data, error: insertError } = await supabase
         .from("projects")
         .insert({
@@ -123,10 +186,31 @@ export default function CreateProjectPage() {
 
       if (insertError) throw insertError;
 
+      // STEP 2: Find this user's inactive tasks and activate them.
+      const { error: taskError } = await supabase
+        .from("tasks")
+        .update({ key: true })
+        .eq("user_id", userInfo)
+        .eq("key", false);
+
+      if (taskError) {
+        // Best-effort cleanup if task activation fails.
+        await supabase
+          .from("projects")
+          .delete()
+          .eq("id", data.id)
+          .eq("user_id", userInfo);
+
+        throw new Error(
+          `Your project could not finish setting up because task activation failed: ${taskError.message}`
+        );
+      }
+
+      // STEP 3: Update shared application state.
       setProjectDetails(projectDetails);
       setCurrentProject(data);
+      setTaskKey(true);
 
-      // Keep the shared project list in sync.
       setProject((previous) => [
         ...(previous ?? []),
         {
@@ -135,6 +219,7 @@ export default function CreateProjectPage() {
         },
       ]);
 
+      // STEP 4: Continue to nominee registration.
       router.push("/register");
     } catch (err: unknown) {
       setError(
@@ -177,7 +262,8 @@ export default function CreateProjectPage() {
             </p>
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-6">
+            {/* Project name */}
             <div>
               <label
                 htmlFor="project-name"
@@ -196,6 +282,7 @@ export default function CreateProjectPage() {
               />
             </div>
 
+            {/* Description */}
             <div>
               <label
                 htmlFor="project-description"
@@ -219,43 +306,163 @@ export default function CreateProjectPage() {
               />
             </div>
 
+            {/* Election duration */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
-                Election duration
-              </label>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-white/80">
+                  Election duration
+                </label>
 
-              <div className="grid grid-cols-[1fr_1fr] gap-3">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={duration}
-                  onChange={(event) => setDuration(event.target.value)}
-                  required
-                  className="min-w-0 rounded-xl border border-emerald-400/15 bg-black/20 px-4 py-3 text-sm outline-none focus:border-emerald-400/60"
-                />
-
-                <select
-                  value={unit}
-                  onChange={(event) =>
-                    setUnit(event.target.value as DurationUnit)
-                  }
-                  className="min-w-0 rounded-xl border border-emerald-400/15 bg-[#102019] px-4 py-3 text-sm outline-none focus:border-emerald-400/60"
-                >
-                  <option value="minutes">Minutes</option>
-                  <option value="hours">Hours</option>
-                  <option value="days">Days</option>
-                  <option value="years">Years</option>
-                </select>
+                <p className="mt-1 text-xs text-white/40">
+                  Choose how long participants will have to vote.
+                </p>
               </div>
 
-              <p className="mt-2 text-xs text-white/35">
-                The election expiration time is calculated from when
-                you create this project.
+              {/* Duration presets */}
+              <div className="grid grid-cols-2 gap-3">
+                {durationPresets.map((preset) => {
+                  const selected =
+                    durationMode === "preset" &&
+                    selectedPreset === preset.label;
+
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setDurationMode("preset");
+                        setSelectedPreset(preset.label);
+                      }}
+                      className={`rounded-xl border p-4 text-left transition ${
+                        selected
+                          ? "border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.08)]"
+                          : "border-emerald-400/15 bg-black/20 hover:border-emerald-400/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-white">
+                          {preset.label}
+                        </span>
+
+                        <span
+                          className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                            selected
+                              ? "border-emerald-400"
+                              : "border-white/30"
+                          }`}
+                        >
+                          {selected && (
+                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                          )}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-xs text-white/40">
+                        {preset.description}
+                      </p>
+
+                      {preset.label === "3 days" && (
+                        <span className="mt-2 inline-block text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                          Popular choice
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom duration option */}
+              <button
+                type="button"
+                onClick={() => setDurationMode("custom")}
+                className={`mt-3 flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
+                  durationMode === "custom"
+                    ? "border-emerald-400/70 bg-emerald-500/10"
+                    : "border-emerald-400/15 bg-black/20 hover:border-emerald-400/40"
+                }`}
+              >
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Custom duration
+                  </p>
+
+                  <p className="mt-1 text-xs text-white/40">
+                    Set your own election time.
+                  </p>
+                </div>
+
+                <span
+                  className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                    durationMode === "custom"
+                      ? "border-emerald-400"
+                      : "border-white/30"
+                  }`}
+                >
+                  {durationMode === "custom" && (
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  )}
+                </span>
+              </button>
+
+              {/* Custom duration inputs */}
+              {durationMode === "custom" && (
+                <div className="mt-3 grid grid-cols-[1fr_1fr] gap-3 rounded-xl border border-emerald-400/15 bg-black/20 p-4">
+                  <div>
+                    <label
+                      htmlFor="custom-duration"
+                      className="mb-2 block text-xs font-medium text-white/60"
+                    >
+                      Amount
+                    </label>
+
+                    <input
+                      id="custom-duration"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={duration}
+                      onChange={(event) =>
+                        setDuration(event.target.value)
+                      }
+                      required={durationMode === "custom"}
+                      className="min-w-0 w-full rounded-lg border border-emerald-400/15 bg-black/30 px-3 py-3 text-sm outline-none focus:border-emerald-400/60"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="custom-unit"
+                      className="mb-2 block text-xs font-medium text-white/60"
+                    >
+                      Unit
+                    </label>
+
+                    <select
+                      id="custom-unit"
+                      value={unit}
+                      onChange={(event) =>
+                        setUnit(event.target.value as DurationUnit)
+                      }
+                      className="min-w-0 w-full rounded-lg border border-emerald-400/15 bg-[#102019] px-3 py-3 text-sm outline-none focus:border-emerald-400/60"
+                    >
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                      <option value="weeks">Weeks</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-3 text-xs leading-5 text-white/35">
+                Your election will automatically reach its scheduled
+                expiration time. Choose a duration that gives participants
+                enough time to take part.
               </p>
             </div>
           </div>
 
+          {/* Error */}
           {error && (
             <p
               role="alert"
@@ -265,6 +472,7 @@ export default function CreateProjectPage() {
             </p>
           )}
 
+          {/* Submit */}
           <button
             type="submit"
             disabled={saving || !userInfo}
