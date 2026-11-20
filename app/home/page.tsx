@@ -90,14 +90,8 @@ export default function HomePage() {
             .maybeSingle(),
 
           supabase
-            .from("projects")
-            .select(`
-              *,
-              nominees (
-                *,
-                achievements (*)
-              )
-            `)
+            .from("projects").
+            select(`*, nominees (*, achievements (*), voters (*))`)
             .eq("user_id", userInfo)
             .eq("deleted", false)
             .order("created_at", { ascending: true }),
@@ -152,7 +146,7 @@ export default function HomePage() {
 
   // Project exists, but voting has not been activated.
   if (taskKey === false && project && project.length > 0) {
-    return <FinishedProject project={project} />;
+    return <FinishedProject />
   }
 
   // Voting has been activated and projects exist.
