@@ -34,6 +34,7 @@ export type Voter = {
   nominee_id: string;
   name: string | null;
   comment: string | null;
+  user_id: string;
 };
 
 export type Nominee = {

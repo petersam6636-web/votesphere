@@ -10,7 +10,6 @@ import {
   Info,
   Loader2,
   MessageSquare,
-  QrCode,
   ShieldCheck,
   Users,
   Vote,
@@ -24,6 +23,7 @@ import type { Project } from "@/types/project";
 type Voter = {
   id: string;
   nominee_id: string;
+  project_id: string;
   name: string | null;
   comment: string | null;
 };
@@ -47,6 +47,17 @@ type VoteForm = {
 const getVoteStorageKey = (projectId: string | number) =>
   `votesphere-voted-${projectId}`;
 
+const getOrCreateBrowserUUID = () => {
+  let browserUUID = localStorage.getItem("votesphere-browser-uuid");
+
+  if (!browserUUID) {
+    browserUUID = crypto.randomUUID();
+    localStorage.setItem("votesphere-browser-uuid", browserUUID);
+  }
+
+  return browserUUID;
+};
+
 function formatDate(date: string | null | undefined) {
   if (!date) return "Date unavailable";
 
@@ -66,8 +77,6 @@ function formatDate(date: string | null | undefined) {
 export default function NomineesPage() {
   const router = useRouter();
 
-  // Shared application state.
-  // This assumes your useApp context exposes projects and setProjects.
   const { taskKey, project, setProject } = useApp();
 
   const [currentProject, setCurrentProject] =
@@ -109,7 +118,7 @@ export default function NomineesPage() {
     })[0];
   }, [project]);
 
-  // Fetch the latest project data and update the shared context.
+  // Fetch the latest election and its nominees.
   const refreshProject = useCallback(
     async (projectId: string | number) => {
       const { data, error } = await supabase
@@ -126,9 +135,7 @@ export default function NomineesPage() {
         .eq("deleted", false)
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (!data) {
         throw new Error("Unable to find the current election.");
@@ -136,10 +143,8 @@ export default function NomineesPage() {
 
       const updatedProject = data as ElectionProject;
 
-      // Update this page.
       setCurrentProject(updatedProject);
 
-      // Update shared state so every page using useApp receives the changes.
       setProject((previousProjects) => {
         if (!previousProjects) {
           return [updatedProject as Project];
@@ -157,7 +162,47 @@ export default function NomineesPage() {
     [setProject]
   );
 
-  // Initial fetch and realtime vote updates.
+  // Check whether the browser has already voted in this project.
+  const checkVotingStatus = useCallback(
+    async (projectId: string | number) => {
+      const storageKey = getVoteStorageKey(projectId);
+
+      try {
+        const savedUUID = localStorage.getItem(storageKey);
+
+        if (!savedUUID) {
+          setHasVoted(false);
+          return false;
+        }
+
+        // Check whether this election has received votes.
+        // Without a voter_token column, the UUID cannot be
+        // independently matched against a database voter record.
+        const { data, error } = await supabase
+          .from("voters")
+          .select("id")
+          .eq("project_id", projectId)
+          .limit(1);
+
+        if (error) throw error;
+
+        // The local browser marker remains the primary
+        // duplicate-vote protection for this browser.
+        const voted = Boolean(savedUUID) && Boolean(data);
+
+        setHasVoted(voted);
+
+        return voted;
+      } catch (error) {
+        console.error("Unable to check voting status:", error);
+        setHasVoted(false);
+        return false;
+      }
+    },
+    []
+  );
+
+  // Load project and subscribe to realtime updates.
   useEffect(() => {
     if (taskKey !== true || !selectedProject?.id) {
       setLoadingProject(false);
@@ -172,7 +217,11 @@ export default function NomineesPage() {
       setLoadError("");
 
       try {
-        await refreshProject(selectedProject.id);
+        const updated = await refreshProject(selectedProject.id);
+
+        if (active) {
+          await checkVotingStatus(updated.id);
+        }
       } catch (error: unknown) {
         if (active) {
           setLoadError(
@@ -182,15 +231,12 @@ export default function NomineesPage() {
           );
         }
       } finally {
-        if (active) {
-          setLoadingProject(false);
-        }
+        if (active) setLoadingProject(false);
       }
     };
 
     void loadProject();
 
-    // Listen for changes to the voters table.
     const channel = supabase
       .channel(`nominee-votes-${selectedProject.id}`)
       .on(
@@ -201,7 +247,7 @@ export default function NomineesPage() {
           table: "voters",
         },
         () => {
-          void refreshProject(selectedProject.id).catch((error: unknown) => {
+          void refreshProject(selectedProject.id).catch((error) => {
             console.error("Unable to refresh nominee results:", error);
           });
         }
@@ -212,24 +258,14 @@ export default function NomineesPage() {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [taskKey, selectedProject?.id, refreshProject]);
+  }, [
+    taskKey,
+    selectedProject?.id,
+    refreshProject,
+    checkVotingStatus,
+  ]);
 
-  // Check whether this browser has already voted.
-  useEffect(() => {
-    if (!currentProject?.id) return;
-
-    try {
-      const savedVote = localStorage.getItem(
-        getVoteStorageKey(currentProject.id)
-      );
-
-      setHasVoted(Boolean(savedVote));
-    } catch {
-      setHasVoted(false);
-    }
-  }, [currentProject?.id]);
-
-  // Automatically hide the success notification.
+  // Automatically hide success notification.
   useEffect(() => {
     if (!successMessage) return;
 
@@ -247,26 +283,16 @@ export default function NomineesPage() {
     0
   );
 
-  // Open the voting popup.
-  const openVoteModal = (nominee: Nominee) => {
-    setVoteError("");
-
+  // Open voting modal.
+  const openVoteModal = async (nominee: Nominee) => {
     if (!currentProject?.id) return;
 
-    try {
-      const savedVote = localStorage.getItem(
-        getVoteStorageKey(currentProject.id)
-      );
+    setVoteError("");
 
-      if (savedVote) {
-        setHasVoted(true);
-        setShowAlreadyVoted(true);
-        return;
-      }
-    } catch {
-      setVoteError(
-        "Browser storage is unavailable. Please enable local storage to vote."
-      );
+    const alreadyVoted = await checkVotingStatus(currentProject.id);
+
+    if (alreadyVoted) {
+      setShowAlreadyVoted(true);
       return;
     }
 
@@ -282,7 +308,7 @@ export default function NomineesPage() {
     setVoteForm({ name: "", comment: "" });
   };
 
-  // Submit a vote and refresh the shared project data.
+  // Submit vote.
   const handleVote = async () => {
     if (!selectedNominee || !currentProject?.id || submitting) return;
 
@@ -300,38 +326,41 @@ export default function NomineesPage() {
     const storageKey = getVoteStorageKey(currentProject.id);
 
     try {
-      // Check again immediately before inserting.
-      const existingVote = localStorage.getItem(storageKey);
+      // Recheck immediately before inserting.
+      const alreadyVoted = await checkVotingStatus(currentProject.id);
 
-      if (existingVote) {
-        setHasVoted(true);
+      if (alreadyVoted) {
         setShowAlreadyVoted(true);
         setSelectedNominee(null);
         return;
       }
 
-      // Generate a browser-specific marker.
-      const voteId = crypto.randomUUID();
+      // Get the existing browser UUID or create a new one.
+      // If this browser has not voted in this election,
+      // a fresh project-specific UUID is generated.
+      const browserUUID = crypto.randomUUID();
 
-      // Insert the vote. The database should generate the voter's row ID.
+      // Save the UUID after the successful database insertion.
       const { error } = await supabase.from("voters").insert({
+        project_id: currentProject.id,
         nominee_id: selectedNominee.id,
         name,
-        comment,
+        comment: comment || null,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Save the marker only after Supabase accepts the vote.
-      localStorage.setItem(storageKey, voteId);
+      // Store the browser UUID only after successful insertion.
+      localStorage.setItem(storageKey, browserUUID);
+
+      // Maintain a general browser UUID as well.
+      localStorage.setItem("votesphere-browser-uuid", browserUUID);
+
       setHasVoted(true);
 
       const nomineeName =
         selectedNominee.name || "your selected nominee";
 
-      // Close the modal and show success immediately.
       setSelectedNominee(null);
       setVoteForm({ name: "", comment: "" });
 
@@ -339,7 +368,6 @@ export default function NomineesPage() {
         `Thank you, ${name}! Your vote for ${nomineeName} was submitted successfully.`
       );
 
-      // Fetch the latest project again and update shared state.
       try {
         await refreshProject(currentProject.id);
         setLoadError("");
@@ -372,15 +400,7 @@ export default function NomineesPage() {
     router.push(`/home/share/${nomineeId}`);
   };
 
-  const handleQRCode = () => {
-    if (!currentProject?.user_id) return;
-
-    router.push(
-      `/qrCode?id=${encodeURIComponent(currentProject.user_id)}`
-    );
-  };
-
-  // Wait for shared state to finish loading.
+  // Loading shared application state.
   if (taskKey === null || project === null) {
     return (
       <div className="flex min-h-[65vh] items-center justify-center">
@@ -392,10 +412,10 @@ export default function NomineesPage() {
     );
   }
 
-  // No active election.
+  // No active election: centered without unnecessary scrolling.
   if (!(taskKey === true && project.length > 0)) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
+      <div className="flex min-h-[calc(100dvh-5rem)] w-full items-center justify-center overflow-hidden px-4 py-4">
         <section className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/[0.09] bg-[#0b1510] p-7 text-center shadow-[0_25px_80px_rgba(0,0,0,0.35)] sm:p-9">
           <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-emerald-400/[0.08] blur-[65px]" />
 
@@ -415,7 +435,7 @@ export default function NomineesPage() {
           <button
             type="button"
             onClick={handleStartElection}
-            className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-[#04130c] shadow-[0_8px_25px_rgba(16,185,129,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_12px_30px_rgba(16,185,129,0.2)] active:translate-y-0"
+            className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3.5 text-sm font-semibold text-[#04130c] shadow-[0_8px_25px_rgba(16,185,129,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 active:translate-y-0"
           >
             <Vote size={17} />
             Start Election
@@ -445,7 +465,6 @@ export default function NomineesPage() {
       <div className="flex min-h-[55vh] items-center justify-center px-4">
         <div className="max-w-md text-center">
           <Info className="mx-auto mb-3 text-red-300" size={25} />
-
           <p className="text-sm text-red-300">{loadError}</p>
 
           <button
@@ -457,6 +476,7 @@ export default function NomineesPage() {
               setLoadError("");
 
               void refreshProject(selectedProject.id)
+                .then((updated) => checkVotingStatus(updated.id))
                 .catch((error: unknown) => {
                   setLoadError(
                     error instanceof Error
@@ -478,7 +498,7 @@ export default function NomineesPage() {
   if (!currentProject) return null;
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-2 py-4 text-white  lg:px-6">
+    <main className="relative min-h-screen overflow-hidden px-2 py-4 text-white lg:px-6">
       {/* Ambient background */}
       <div className="pointer-events-none absolute left-1/4 top-0 h-72 w-72 rounded-full bg-emerald-500/[0.035] blur-[100px]" />
       <div className="pointer-events-none absolute bottom-20 right-0 h-64 w-64 rounded-full bg-emerald-400/[0.035] blur-[100px]" />
@@ -515,11 +535,9 @@ export default function NomineesPage() {
               <span className="text-xs text-white/40">Nominees</span>
               <Users size={17} className="text-emerald-300" />
             </div>
-
             <p className="mt-2 text-2xl font-semibold text-white">
               {nominees.length}
             </p>
-
             <p className="mt-1 text-xs text-white/30">
               Candidates in this election
             </p>
@@ -530,11 +548,9 @@ export default function NomineesPage() {
               <span className="text-xs text-white/40">Total votes</span>
               <Vote size={17} className="text-emerald-300" />
             </div>
-
             <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
               {totalVotes.toLocaleString()}
             </p>
-
             <p className="mt-1 text-xs text-white/30">
               Votes submitted so far
             </p>
@@ -545,11 +561,9 @@ export default function NomineesPage() {
               <span className="text-xs text-white/40">Created</span>
               <Clock3 size={17} className="text-emerald-300" />
             </div>
-
             <p className="mt-2 text-base font-semibold text-white">
               {formatDate(currentProject.created_at)}
             </p>
-
             <p className="mt-1 text-xs text-white/30">
               Election creation date
             </p>
@@ -563,12 +577,10 @@ export default function NomineesPage() {
             className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-3 text-xs text-amber-200"
           >
             <span>{loadError}</span>
-
             <button
               type="button"
               onClick={() => {
                 setLoadError("");
-
                 void refreshProject(currentProject.id).catch(
                   (error: unknown) => {
                     setLoadError(
@@ -593,12 +605,10 @@ export default function NomineesPage() {
               size={19}
               className="mt-0.5 shrink-0 text-emerald-300"
             />
-
             <div>
               <p className="text-sm font-semibold text-emerald-200">
                 Your vote has been recorded
               </p>
-
               <p className="mt-1 text-xs leading-5 text-white/40">
                 This browser has already submitted a vote for this election.
                 You cannot vote again from this browser.
@@ -613,11 +623,9 @@ export default function NomineesPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/30">
               Election participants
             </p>
-
             <h2 className="mt-1 text-xl font-semibold text-white">
               Meet the nominees
             </h2>
-
             <p className="mt-1 text-sm text-white/40">
               Review each nominee and choose who deserves your vote.
             </p>
@@ -633,11 +641,9 @@ export default function NomineesPage() {
         {nominees.length === 0 ? (
           <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] px-5 py-14 text-center">
             <Users className="mx-auto mb-4 text-white/30" size={30} />
-
             <h3 className="font-semibold text-white">
               No nominees available
             </h3>
-
             <p className="mt-2 text-sm text-white/40">
               Nominees will appear here when they are added to this election.
             </p>
@@ -667,7 +673,6 @@ export default function NomineesPage() {
                         <h3 className="break-words text-lg font-semibold text-white">
                           {nominee.name || "Unnamed nominee"}
                         </h3>
-
                         <p className="mt-1 text-xs text-white/35">
                           Election nominee
                         </p>
@@ -677,19 +682,17 @@ export default function NomineesPage() {
                         <p className="text-lg font-semibold tabular-nums text-white">
                           {voteCount.toLocaleString()}
                         </p>
-
                         <p className="text-[10px] text-white/35">
                           {voteCount === 1 ? "vote" : "votes"}
                         </p>
                       </div>
                     </div>
 
-                    {/* Nominee description */}
+                    {/* Description */}
                     <div className="mt-5">
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300/55">
                         Description
                       </p>
-
                       <p className="min-h-[48px] whitespace-pre-wrap break-words text-sm leading-6 text-white/50">
                         {nominee.description ||
                           "This nominee has not provided a description yet."}
@@ -702,7 +705,6 @@ export default function NomineesPage() {
                         <span className="text-xs text-white/40">
                           Vote distribution
                         </span>
-
                         <span className="text-xs font-semibold tabular-nums text-emerald-300">
                           {percentage.toFixed(1)}%
                         </span>
@@ -723,7 +725,7 @@ export default function NomineesPage() {
                       </div>
                     </div>
 
-                    {/* Nominee actions */}
+                    {/* Actions */}
                     <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <button
                         type="button"
@@ -737,14 +739,12 @@ export default function NomineesPage() {
 
                       <button
                         type="button"
-                        onClick={() => openVoteModal(nominee)}
+                        onClick={() => void openVoteModal(nominee)}
                         disabled={hasVoted}
-                        className="group/button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#04130c] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_8px_25px_rgba(16,185,129,0.15)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                        className="group/button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#04130c] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_8px_25px_rgba(16,185,129,0.15)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Vote size={16} />
-
                         {hasVoted ? "Already voted" : "Vote for nominee"}
-
                         {!hasVoted && (
                           <ArrowRight
                             size={15}
@@ -765,17 +765,6 @@ export default function NomineesPage() {
         </footer>
       </div>
 
-      {/* Floating QR button */}
-      <button
-        type="button"
-        onClick={handleQRCode}
-        aria-label="Generate election QR code"
-        title="Generate QR code"
-        className="fixed bottom-6 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-400 text-[#04130c] shadow-[0_8px_30px_rgba(16,185,129,0.2)] transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-emerald-300 active:scale-95 sm:bottom-8 sm:right-8"
-      >
-        <QrCode size={23} />
-      </button>
-
       {/* Success notification */}
       {successMessage && (
         <div
@@ -790,7 +779,6 @@ export default function NomineesPage() {
             <p className="text-sm font-semibold text-emerald-200">
               Vote submitted successfully!
             </p>
-
             <p className="mt-1 text-xs leading-5 text-white/55">
               {successMessage}
             </p>
@@ -835,10 +823,10 @@ export default function NomineesPage() {
         </div>
       )}
 
-      {/* Voting popup */}
+      {/* Voting modal */}
       {selectedNominee && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/75 px-4 py-8 backdrop-blur-md"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-md"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeVoteModal();
@@ -887,7 +875,6 @@ export default function NomineesPage() {
                 <p className="font-semibold text-emerald-200">
                   {selectedNominee.name || "Unnamed nominee"}
                 </p>
-
                 <p className="mt-1 text-xs leading-5 text-white/40">
                   Your vote will be recorded for this nominee.
                 </p>
@@ -966,7 +953,7 @@ export default function NomineesPage() {
                   type="button"
                   onClick={handleVote}
                   disabled={submitting || !voteForm.name.trim()}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3.5 text-sm font-semibold text-[#04130c] shadow-[0_8px_25px_rgba(16,185,129,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 hover:shadow-[0_12px_30px_rgba(16,185,129,0.2)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3.5 text-sm font-semibold text-[#04130c] shadow-[0_8px_25px_rgba(16,185,129,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-300 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {submitting ? (
                     <>
@@ -997,7 +984,7 @@ export default function NomineesPage() {
 
               <p className="mt-5 text-center text-[11px] leading-5 text-white/25">
                 Please review your choice carefully. You cannot vote again
-                 after submitting.
+                after submitting.
               </p>
             </div>
           </section>
