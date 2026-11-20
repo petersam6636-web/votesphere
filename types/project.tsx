@@ -1,3 +1,4 @@
+
 export type ProjectDetail = {
   name: string;
   description: string | null;
@@ -28,6 +29,13 @@ export type AchievementForm = {
   project: string;
 };
 
+export type Voter = {
+  id: string;
+  nominee_id: string;
+  name: string | null;
+  comment: string | null;
+};
+
 export type Nominee = {
   id: string;
   project_id: string;
@@ -37,6 +45,7 @@ export type Nominee = {
   image: string | null;
   created_at: string;
   achievements?: Achievement[];
+  voters?: Voter[];
 };
 
 export type NomineeForm = {

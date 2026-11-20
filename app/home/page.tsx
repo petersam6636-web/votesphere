@@ -157,7 +157,7 @@ export default function HomePage() {
 
   // Voting has been activated and projects exist.
   if (taskKey === true && project && project.length > 0) {
-    return <ActiveProject project={project} />;
+    return <ActiveProject  />;
   }
 
   return (
