@@ -24,12 +24,15 @@ import {
 
 import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
+import {
+  getElectionDurationMs,
+  getElectionStartStorageKey,
+  LEGACY_ELECTION_START_KEY,
+} from "@/lib/electionTimer";
 
 import ProjectLoading from "@/components/ProjectLoading";
 
 import type { Project } from "@/types/project";
-
-const ELECTION_START_KEY = "votesphere_election_start_time";
 
 type TimeLeft = {
   days: number;
@@ -116,7 +119,7 @@ export default function ActiveProject() {
   const endingRef = useRef(false);
 
   // --------------------------------------------------
-  // LOAD THE USER'S EARLIEST ACTIVE PROJECT
+  // LOAD THE USER'S MOST RECENT PROJECT
   // --------------------------------------------------
 
   useEffect(() => {
@@ -144,7 +147,7 @@ export default function ActiveProject() {
           `)
           .eq("user_id", userInfo)
           .eq("deleted", false)
-          .order("created_at", { ascending: true })
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
@@ -158,15 +161,6 @@ export default function ActiveProject() {
 
         const selectedProject = data as Project;
 
-        // duration_ms stores the selected election duration in milliseconds.
-        const duration = Number(selectedProject.duration_ms);
-
-        if (!Number.isFinite(duration) || duration <= 0) {
-          throw new Error(
-            "The saved election duration is invalid."
-          );
-        }
-
         const createdAt = new Date(
           selectedProject.created_at
         ).getTime();
@@ -177,26 +171,45 @@ export default function ActiveProject() {
           );
         }
 
-        // Read the original timestamp saved when the user clicked
-        // the create-project button.
-        const savedStartTime = localStorage.getItem(
-          ELECTION_START_KEY
+        const storedDuration = Number(selectedProject.duration_ms);
+        const hasLegacyExpiration = storedDuration > createdAt;
+        const duration = getElectionDurationMs(
+          selectedProject.duration_ms,
+          selectedProject.created_at
         );
 
-        let startTime = savedStartTime
-          ? Number(savedStartTime)
-          : Number.NaN;
-
-        // For projects created before this feature, use created_at
-        // as a fallback and save it for subsequent page visits.
-        if (!Number.isFinite(startTime) || startTime <= 0) {
-          startTime = createdAt;
-
-          localStorage.setItem(
-            ELECTION_START_KEY,
-            String(startTime)
-          );
+        if (!Number.isFinite(duration) || duration <= 0) {
+          throw new Error("The saved election duration is invalid.");
         }
+
+        const startStorageKey = getElectionStartStorageKey(
+          selectedProject.id
+        );
+        const savedStartTime = Number(
+          localStorage.getItem(startStorageKey)
+        );
+        const legacyStartTime = Number(
+          localStorage.getItem(LEGACY_ELECTION_START_KEY)
+        );
+
+        const hasSavedStartTime =
+          Number.isFinite(savedStartTime) &&
+          savedStartTime > 0 &&
+          savedStartTime <= Date.now();
+        const hasLegacyStartTime =
+          Number.isFinite(legacyStartTime) &&
+          legacyStartTime >= createdAt &&
+          legacyStartTime <= Date.now();
+        const startTime = hasLegacyExpiration
+          ? createdAt
+          : hasSavedStartTime
+            ? savedStartTime
+            : hasLegacyStartTime
+              ? legacyStartTime
+              : createdAt;
+
+        localStorage.setItem(startStorageKey, String(startTime));
+        localStorage.removeItem(LEGACY_ELECTION_START_KEY);
 
         if (!active) return;
 
@@ -207,8 +220,21 @@ export default function ActiveProject() {
         setRemainingMs(remainingTime);
         setActiveProject(selectedProject);
 
-        // Save the fetched project and its nested data in shared state.
-        setProject([selectedProject]);
+        // Refresh this project in shared state without dropping older projects.
+        setProject((previousProjects) => {
+          const projects = previousProjects ?? [];
+          const hasProject = projects.some(
+            (project) => project.id === selectedProject.id
+          );
+
+          return hasProject
+            ? projects.map((project) =>
+                project.id === selectedProject.id
+                  ? selectedProject
+                  : project
+              )
+            : [...projects, selectedProject];
+        });
       } catch (err: unknown) {
         if (!active) return;
 
@@ -252,9 +278,16 @@ export default function ActiveProject() {
         throw updateError;
       }
 
-      // Remove the saved start timestamp after the election
-      // has been successfully deactivated.
-      localStorage.removeItem(ELECTION_START_KEY);
+      try {
+        if (activeProject) {
+          localStorage.removeItem(
+            getElectionStartStorageKey(activeProject.id)
+          );
+        }
+        localStorage.removeItem(LEGACY_ELECTION_START_KEY);
+      } catch (storageError) {
+        console.warn("Unable to clear the saved election timer:", storageError);
+      }
 
       // Update shared state immediately.
       // HomePage can now render FinishedProject.
@@ -270,7 +303,7 @@ export default function ActiveProject() {
     } finally {
       setEnding(false);
     }
-  }, [userInfo, setTaskKey]);
+  }, [activeProject, userInfo, setTaskKey]);
 
   // --------------------------------------------------
   // CONFIRM MANUAL ELECTION END
@@ -294,7 +327,10 @@ export default function ActiveProject() {
       return;
     }
 
-    const duration = Number(activeProject.duration_ms);
+    const duration = getElectionDurationMs(
+      activeProject.duration_ms,
+      activeProject.created_at
+    );
 
     const updateCountdown = () => {
       // Calculate the remaining time using the original saved
@@ -402,12 +438,12 @@ export default function ActiveProject() {
     0
   );
 
-  const duration = Number(activeProject.duration_ms);
+  const duration = getElectionDurationMs(
+    activeProject.duration_ms,
+    activeProject.created_at
+  );
 
-  const elapsedTime =
-    electionStartTime !== null
-      ? Date.now() - electionStartTime
-      : 0;
+  const elapsedTime = Math.max(0, duration - remainingMs);
 
   const progress =
     duration > 0

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
+import { getElectionStartStorageKey } from "@/lib/electionTimer";
 
 import ProjectLoading from "@/components/ProjectLoading";
 import NomineeImageUpload from "@/components/NomineeImageUpload";
@@ -232,7 +233,8 @@ export default function Nominee() {
         *,
         nominees (
           *,
-          achievements (*)
+          achievements (*),
+          voters (*)
         )
       `)
       .eq("user_id", userInfo)
@@ -276,6 +278,9 @@ export default function Nominee() {
 
     setSaving(true);
     setError("");
+
+    let startStorageKey: string | null = null;
+    let votingActivated = false;
 
     try {
       // STEP 1: Save all registered nominees.
@@ -324,6 +329,16 @@ export default function Nominee() {
 
       if (taskFetchError) throw taskFetchError;
 
+      // Start the timer when voting activates, not when project setup begins.
+      startStorageKey = getElectionStartStorageKey(currentProject.id);
+      try {
+        localStorage.setItem(startStorageKey, String(Date.now()));
+      } catch {
+        throw new Error(
+          "The election timer could not be saved in this browser. Enable browser storage and try again."
+        );
+      }
+
       // STEP 4: Activate the task or create one if none exists.
       if (task) {
         const { error: taskUpdateError } = await supabase
@@ -344,6 +359,8 @@ export default function Nominee() {
         if (taskInsertError) throw taskInsertError;
       }
 
+      votingActivated = true;
+
       // STEP 5: Refresh projects and shared state.
       await refreshProjects();
 
@@ -352,6 +369,17 @@ export default function Nominee() {
       // STEP 6: Return to homepage.
       router.replace("/home");
     } catch (err: unknown) {
+      if (!votingActivated && startStorageKey) {
+        try {
+          localStorage.removeItem(startStorageKey);
+        } catch (cleanupError) {
+          console.warn(
+            "Unable to clear the unstarted election timer:",
+            cleanupError
+          );
+        }
+      }
+
       setError(
         err instanceof Error
           ? err.message

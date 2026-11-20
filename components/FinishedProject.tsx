@@ -18,9 +18,8 @@ import {
 } from "lucide-react";
 
 import useApp from "@/lib/useApp";
+import { getElectionDurationMs } from "@/lib/electionTimer";
 import type { Project } from "@/types/project";
-
-const ELECTION_START_KEY = "votesphere_election_start_time";
 
 type ActivityNominee = {
   id?: string;
@@ -127,8 +126,10 @@ export default function FinishedProject() {
       : Number.NaN;
 
     // duration_ms stores the selected election duration in milliseconds.
-    const durationValue = Number(selectedProject.duration_ms);
-
+    const durationValue = getElectionDurationMs(
+      selectedProject.duration_ms,
+      selectedProject.created_at
+    );
     const duration =
       Number.isFinite(durationValue) && durationValue > 0
         ? durationValue
@@ -150,7 +151,6 @@ export default function FinishedProject() {
   }, [project]);
 
   const handleCreateProject = () => {
-    localStorage.setItem(ELECTION_START_KEY, String(Date.now()));
     router.push("/home/starting");
   };
 

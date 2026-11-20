@@ -161,7 +161,7 @@ export default function CreateProjectPage() {
     setError("");
 
     try {
-      const durationMs = Date.now() + getDurationInMilliseconds();
+      const durationMs = getDurationInMilliseconds();
 
       const projectDetails = {
         name: name.trim(),

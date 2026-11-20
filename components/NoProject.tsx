@@ -3,13 +3,10 @@
 import { useRouter } from "next/navigation";
 import { Plus, Vote, Sparkles, Users, ShieldCheck } from "lucide-react";
 
-const ELECTION_START_KEY = "votesphere_election_start_time";
-
 export default function NoProject() {
   const router = useRouter();
 
   const handleCreateProject = () => {
-    localStorage.setItem(ELECTION_START_KEY, String(Date.now()));
     router.push("/home/starting");
   };
 
