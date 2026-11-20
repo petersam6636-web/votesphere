@@ -16,6 +16,8 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let savedPosition: NavigationPosition | null = null;
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
 
@@ -24,13 +26,18 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         saved === "right" ||
         saved === "bottom"
       ) {
-        setPosition(saved);
+        savedPosition = saved;
       }
     } catch {
       // Keep the default position if browser storage is unavailable.
     }
 
-    setReady(true);
+    const frame = window.requestAnimationFrame(() => {
+      if (savedPosition) setPosition(savedPosition);
+      setReady(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const changePosition = (nextPosition: NavigationPosition) => {

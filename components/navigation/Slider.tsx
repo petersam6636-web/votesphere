@@ -36,15 +36,14 @@ export default function Slider({
 }: SliderProps) {
   const pathname = usePathname();
 
-  const isActive = (href: string) => {
-    if (href === "/home") {
-      return homePaths.some(
-        (path) => pathname === path || pathname.startsWith(`${path}/`)
-      );
-    }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
+const isActive = (href: string) => {
+  if (href === "/home") {
+    return homePaths.includes(pathname);
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+};
 
   const vertical = position !== "bottom";
   const tooltipPosition =

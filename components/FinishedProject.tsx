@@ -1,6 +1,6 @@
 
 import { CheckCircle2, Trophy } from "lucide-react";
-import type { Project } from "./ActiveProject";
+import type { Project } from "@/types/project";
 
 type FinishedProjectProps = {
   project: Project[];
