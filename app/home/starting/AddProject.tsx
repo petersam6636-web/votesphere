@@ -218,7 +218,7 @@ export default function CreateProjectPage() {
       ]);
 
       // STEP 4: Continue to nominee registration.
-      router.push("/register");
+      router.push("/home/register");
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -235,7 +235,7 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-8 text-white sm:py-10">
+    <main className="relative min-h-screen overflow-hidden px-1 py-4 text-white sm:py-5">
 
       {/* Static decorative glass bubbles - scattered around the page */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
