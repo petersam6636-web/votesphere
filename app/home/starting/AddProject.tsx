@@ -220,7 +220,7 @@ export default function CreateProjectPage() {
       ]);
 
       // STEP 4: Continue to nominee registration.
-      router.push("/register");
+      router.push("home/register");
     } catch (err: unknown) {
       setError(
         err instanceof Error
