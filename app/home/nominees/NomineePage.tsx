@@ -28,16 +28,30 @@ type VoteForm = {
 const getVoteStorageKey = (projectId: string | number) =>
   `votesphere-voted-${projectId}`;
 
-const getOrCreateBrowserUUID = () => {
-  let browserUUID = localStorage.getItem("votesphere-browser-uuid");
+async function getAuthenticatedUserId() {
+  const { data, error } = await supabase.auth.getUser();
 
-  if (!browserUUID) {
-    browserUUID = crypto.randomUUID();
-    localStorage.setItem("votesphere-browser-uuid", browserUUID);
+  if (error) throw error;
+  if (!data.user) {
+    throw new Error("Please sign in again before voting.");
   }
 
-  return browserUUID;
-};
+  return data.user.id;
+}
+
+function syncLocalVoteMarker(projectId: string | number, hasVoted: boolean) {
+  try {
+    const storageKey = getVoteStorageKey(projectId);
+
+    if (hasVoted) {
+      localStorage.setItem(storageKey, "voted");
+    } else {
+      localStorage.removeItem(storageKey);
+    }
+  } catch (error) {
+    console.warn("Unable to synchronize the local vote marker:", error);
+  }
+}
 
 function formatDate(date: string | null | undefined) {
   if (!date) return "Date unavailable";
@@ -143,42 +157,25 @@ export default function NomineesPage() {
     [setProject]
   );
 
-  // Check whether the browser has already voted in this project.
+  // Database records are authoritative; local storage is only a cache.
   const checkVotingStatus = useCallback(
-    async (projectId: string | number) => {
-      const storageKey = getVoteStorageKey(projectId);
+    async (projectId: string | number, userId?: string) => {
+      const voterUserId = userId ?? (await getAuthenticatedUserId());
+      const { data, error } = await supabase
+        .from("voters")
+        .select("project_id")
+        .eq("user_id", voterUserId);
 
-      try {
-        const savedUUID = localStorage.getItem(storageKey);
+      if (error) throw error;
 
-        if (!savedUUID) {
-          setHasVoted(false);
-          return false;
-        }
+      const voted = (data ?? []).some(
+        (voter) => String(voter.project_id) === String(projectId)
+      );
 
-        // Check whether this election has received votes.
-        // Without a voter_token column, the UUID cannot be
-        // independently matched against a database voter record.
-        const { data, error } = await supabase
-          .from("voters")
-          .select("id")
-          .eq("project_id", projectId)
-          .limit(1);
+      syncLocalVoteMarker(projectId, voted);
+      setHasVoted(voted);
 
-        if (error) throw error;
-
-        // The local browser marker remains the primary
-        // duplicate-vote protection for this browser.
-        const voted = Boolean(savedUUID) && Boolean(data);
-
-        setHasVoted(voted);
-
-        return voted;
-      } catch (error) {
-        console.error("Unable to check voting status:", error);
-        setHasVoted(false);
-        return false;
-      }
+      return voted;
     },
     []
   );
@@ -277,7 +274,16 @@ const nominees = useMemo(() => {
 
     setVoteError("");
 
-    const alreadyVoted = await checkVotingStatus(currentProject.id);
+    let alreadyVoted: boolean;
+    try {
+      alreadyVoted = await checkVotingStatus(currentProject.id);
+    } catch (error: unknown) {
+      console.error("Unable to verify voting eligibility:", error);
+      setVoteError(
+        "We couldn't verify whether you have already voted. Please try again."
+      );
+      return;
+    }
 
     if (alreadyVoted) {
       setShowAlreadyVoted(true);
@@ -311,11 +317,11 @@ const nominees = useMemo(() => {
     setSubmitting(true);
     setVoteError("");
 
-    const storageKey = getVoteStorageKey(currentProject.id);
-
     try {
+      const userId = await getAuthenticatedUserId();
+
       // Recheck immediately before inserting.
-      const alreadyVoted = await checkVotingStatus(currentProject.id);
+      const alreadyVoted = await checkVotingStatus(currentProject.id, userId);
 
       if (alreadyVoted) {
         setShowAlreadyVoted(true);
@@ -323,26 +329,17 @@ const nominees = useMemo(() => {
         return;
       }
 
-      // Get the existing browser UUID or create a new one.
-      // If this browser has not voted in this election,
-      // a fresh project-specific UUID is generated.
-      const browserUUID = crypto.randomUUID();
-
-      // Save the UUID after the successful database insertion.
       const { error } = await supabase.from("voters").insert({
         project_id: currentProject.id,
         nominee_id: selectedNominee.id,
+        user_id: userId,
         name,
         comment: comment || null,
       });
 
       if (error) throw error;
 
-      // Store the browser UUID only after successful insertion.
-      localStorage.setItem(storageKey, browserUUID);
-
-      // Maintain a general browser UUID as well.
-      localStorage.setItem("votesphere-browser-uuid", browserUUID);
+      syncLocalVoteMarker(currentProject.id, true);
 
       setHasVoted(true);
 
