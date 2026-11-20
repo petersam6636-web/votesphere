@@ -27,27 +27,33 @@ const durationMultipliers: Record<DurationUnit, number> = {
 
 const durationPresets: DurationPreset[] = [
   {
-    label: "24 hours",
+    label: "30 minutes",
     description: "Quick election",
-    value: 24,
+    value: 30,
+    unit: "minutes",
+  },
+  {
+    label: "1 hour",
+    description: "Recommended",
+    value: 1,
     unit: "hours",
   },
   {
-    label: "3 days",
-    description: "Recommended",
-    value: 3,
-    unit: "days",
-  },
-  {
-    label: "7 days",
+    label: "12 hours",
     description: "More time to participate",
-    value: 7,
+    value: 12,
+    unit: "hours",
+  },
+  {
+    label: "1 day",
+    description: "Extended election",
+    value: 1,
     unit: "days",
   },
   {
-    label: "14 days",
-    description: "Extended election",
-    value: 14,
+    label: "3 days",
+    description: "Popular choice",
+    value: 3,
     unit: "days",
   },
 ];
@@ -67,7 +73,6 @@ export default function CreateProjectPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
-  // Three days is the default election duration.
   const [durationMode, setDurationMode] = useState<"preset" | "custom">(
     "preset"
   );
@@ -81,6 +86,7 @@ export default function CreateProjectPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Verify authenticated user.
   useEffect(() => {
     let active = true;
 
@@ -118,6 +124,7 @@ export default function CreateProjectPage() {
     };
   }, [router, setUserInfo]);
 
+  // Calculate election duration.
   const getDurationInMilliseconds = () => {
     if (durationMode === "preset") {
       const preset = durationPresets.find(
@@ -133,16 +140,14 @@ export default function CreateProjectPage() {
 
     const durationNumber = Number(duration);
 
-    if (
-      !Number.isFinite(durationNumber) ||
-      durationNumber <= 0
-    ) {
+    if (!Number.isFinite(durationNumber) || durationNumber <= 0) {
       throw new Error("Please enter a valid custom duration.");
     }
 
     return durationNumber * durationMultipliers[unit];
   };
 
+  // Create project.
   const handleCreateProject = async (
     event: FormEvent<HTMLFormElement>
   ) => {
@@ -162,8 +167,7 @@ export default function CreateProjectPage() {
     setError("");
 
     try {
-      const durationMs =
-        Date.now() + getDurationInMilliseconds();
+      const durationMs = Date.now() + getDurationInMilliseconds();
 
       const projectDetails = {
         name: name.trim(),
@@ -186,7 +190,7 @@ export default function CreateProjectPage() {
 
       if (insertError) throw insertError;
 
-      // STEP 2: Find this user's inactive tasks and activate them.
+      // STEP 2: Activate inactive tasks.
       const { error: taskError } = await supabase
         .from("tasks")
         .update({ key: true })
@@ -194,7 +198,7 @@ export default function CreateProjectPage() {
         .eq("key", false);
 
       if (taskError) {
-        // Best-effort cleanup if task activation fails.
+        // Clean up project if task activation fails.
         await supabase
           .from("projects")
           .delete()
@@ -237,37 +241,44 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#06110d] px-4 py-10 text-white">
+    <main className="relative min-h-screen overflow-hidden px-4 py-3 text-white">
+
       {/* Ambient emerald background */}
       <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-emerald-500/10 blur-[120px]" />
+
       <div className="pointer-events-none absolute -bottom-40 -right-20 h-96 w-96 rounded-full bg-green-500/10 blur-[130px]" />
 
       <div className="relative mx-auto flex min-h-[80vh] max-w-2xl items-center justify-center">
+
+        {/* Main Card */}
         <form
           onSubmit={handleCreateProject}
-          className="w-full rounded-3xl border border-emerald-400/15 bg-[#0b1913]/90 p-6 shadow-[0_0_70px_rgba(16,185,129,0.06)] backdrop-blur-xl sm:p-9"
+          className="w-full max-w-xl rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 shadow-[0_0_60px_rgba(16,185,129,0.06)] backdrop-blur-xl sm:p-6"
         >
-          <div className="mb-8">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">
+
+          {/* Header */}
+          <div className="mb-5">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400">
               Project setup · Step 1
             </p>
 
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
               Create your election
             </h1>
 
-            <p className="mt-2 text-sm leading-6 text-white/50">
+            <p className="mt-1.5 text-xs leading-5 text-white/50">
               Set up your project before adding the people who will
               participate in the election.
             </p>
           </div>
 
-          <div className="space-y-6">
-            {/* Project name */}
+          <div className="space-y-4">
+
+            {/* Project Name */}
             <div>
               <label
                 htmlFor="project-name"
-                className="mb-2 block text-sm font-medium text-white/80"
+                className="mb-1.5 block text-xs font-medium text-white/80"
               >
                 Project name
               </label>
@@ -278,7 +289,7 @@ export default function CreateProjectPage() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="e.g. Student Representative Election"
                 required
-                className="w-full rounded-xl border border-emerald-400/15 bg-black/20 px-4 py-3 text-sm outline-none transition placeholder:text-white/25 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10"
+                className="w-full rounded-lg border border-emerald-400/15 bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10 [&:-webkit-autofill]:[-webkit-text-fill-color:white] [&:-webkit-autofill]:[box-shadow:0_0_0px_1000px_#0b1913_inset]"
               />
             </div>
 
@@ -286,10 +297,11 @@ export default function CreateProjectPage() {
             <div>
               <label
                 htmlFor="project-description"
-                className="mb-2 block text-sm font-medium text-white/80"
+                className="mb-1.5 block text-xs font-medium text-white/80"
               >
                 Description
-                <span className="ml-2 text-xs text-white/35">
+
+                <span className="ml-2 text-[10px] text-white/35">
                   Optional
                 </span>
               </label>
@@ -297,29 +309,27 @@ export default function CreateProjectPage() {
               <textarea
                 id="project-description"
                 value={description}
-                onChange={(event) =>
-                  setDescription(event.target.value)
-                }
+                onChange={(event) => setDescription(event.target.value)}
                 placeholder="Describe what this election is about..."
-                rows={4}
-                className="w-full resize-none rounded-xl border border-emerald-400/15 bg-black/20 px-4 py-3 text-sm outline-none transition placeholder:text-white/25 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10"
+                rows={3}
+                className="w-full resize-none rounded-lg border border-emerald-400/15 bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10 [&:-webkit-autofill]:[-webkit-text-fill-color:white] [&:-webkit-autofill]:[box-shadow:0_0_0px_1000px_#0b1913_inset]"
               />
             </div>
 
-            {/* Election duration */}
+            {/* Election Duration */}
             <div>
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-white/80">
+              <div className="mb-2.5">
+                <label className="block text-xs font-medium text-white/80">
                   Election duration
                 </label>
 
-                <p className="mt-1 text-xs text-white/40">
+                <p className="mt-1 text-[11px] text-white/40">
                   Choose how long participants will have to vote.
                 </p>
               </div>
 
-              {/* Duration presets */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Duration Presets */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {durationPresets.map((preset) => {
                   const selected =
                     durationMode === "preset" &&
@@ -333,36 +343,36 @@ export default function CreateProjectPage() {
                         setDurationMode("preset");
                         setSelectedPreset(preset.label);
                       }}
-                      className={`rounded-xl border p-4 text-left transition ${
+                      className={`rounded-lg border p-3 text-left transition ${
                         selected
                           ? "border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.08)]"
                           : "border-emerald-400/15 bg-black/20 hover:border-emerald-400/40"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-semibold text-white">
+                        <span className="text-xs font-semibold text-white">
                           {preset.label}
                         </span>
 
                         <span
-                          className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
                             selected
                               ? "border-emerald-400"
                               : "border-white/30"
                           }`}
                         >
                           {selected && (
-                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                           )}
                         </span>
                       </div>
 
-                      <p className="mt-2 text-xs text-white/40">
+                      <p className="mt-1.5 text-[10px] leading-4 text-white/40">
                         {preset.description}
                       </p>
 
                       {preset.label === "3 days" && (
-                        <span className="mt-2 inline-block text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                        <span className="mt-1.5 inline-block text-[9px] font-semibold uppercase tracking-wider text-emerald-400">
                           Popular choice
                         </span>
                       )}
@@ -371,46 +381,46 @@ export default function CreateProjectPage() {
                 })}
               </div>
 
-              {/* Custom duration option */}
+              {/* Custom Duration */}
               <button
                 type="button"
                 onClick={() => setDurationMode("custom")}
-                className={`mt-3 flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
+                className={`mt-2 flex w-full items-center justify-between rounded-lg border p-3 text-left transition ${
                   durationMode === "custom"
                     ? "border-emerald-400/70 bg-emerald-500/10"
                     : "border-emerald-400/15 bg-black/20 hover:border-emerald-400/40"
                 }`}
               >
                 <div>
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-xs font-semibold text-white">
                     Custom duration
                   </p>
 
-                  <p className="mt-1 text-xs text-white/40">
+                  <p className="mt-1 text-[10px] text-white/40">
                     Set your own election time.
                   </p>
                 </div>
 
                 <span
-                  className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                  className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${
                     durationMode === "custom"
                       ? "border-emerald-400"
                       : "border-white/30"
                   }`}
                 >
                   {durationMode === "custom" && (
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   )}
                 </span>
               </button>
 
-              {/* Custom duration inputs */}
+              {/* Custom Duration Inputs */}
               {durationMode === "custom" && (
-                <div className="mt-3 grid grid-cols-[1fr_1fr] gap-3 rounded-xl border border-emerald-400/15 bg-black/20 p-4">
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-emerald-400/15 bg-black/20 p-3">
                   <div>
                     <label
                       htmlFor="custom-duration"
-                      className="mb-2 block text-xs font-medium text-white/60"
+                      className="mb-1.5 block text-[11px] font-medium text-white/60"
                     >
                       Amount
                     </label>
@@ -425,14 +435,14 @@ export default function CreateProjectPage() {
                         setDuration(event.target.value)
                       }
                       required={durationMode === "custom"}
-                      className="min-w-0 w-full rounded-lg border border-emerald-400/15 bg-black/30 px-3 py-3 text-sm outline-none focus:border-emerald-400/60"
+                      className="w-full min-w-0 rounded-lg border border-emerald-400/15 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400/60"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="custom-unit"
-                      className="mb-2 block text-xs font-medium text-white/60"
+                      className="mb-1.5 block text-[11px] font-medium text-white/60"
                     >
                       Unit
                     </label>
@@ -443,7 +453,7 @@ export default function CreateProjectPage() {
                       onChange={(event) =>
                         setUnit(event.target.value as DurationUnit)
                       }
-                      className="min-w-0 w-full rounded-lg border border-emerald-400/15 bg-[#102019] px-3 py-3 text-sm outline-none focus:border-emerald-400/60"
+                      className="w-full min-w-0 rounded-lg border border-emerald-400/15 bg-[#102019] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400/60"
                     >
                       <option value="minutes">Minutes</option>
                       <option value="hours">Hours</option>
@@ -454,7 +464,7 @@ export default function CreateProjectPage() {
                 </div>
               )}
 
-              <p className="mt-3 text-xs leading-5 text-white/35">
+              <p className="mt-2 text-[10px] leading-4 text-white/35">
                 Your election will automatically reach its scheduled
                 expiration time. Choose a duration that gives participants
                 enough time to take part.
@@ -466,7 +476,7 @@ export default function CreateProjectPage() {
           {error && (
             <p
               role="alert"
-              className="mt-5 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+              className="mt-4 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2.5 text-xs text-red-300"
             >
               {error}
             </p>
@@ -476,9 +486,10 @@ export default function CreateProjectPage() {
           <button
             type="submit"
             disabled={saving || !userInfo}
-            className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3.5 text-sm font-semibold text-[#04100a] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-3 text-xs font-semibold text-[#04100a] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Creating project..." : "Continue to nominees"}
+
             {!saving && <span aria-hidden="true">→</span>}
           </button>
         </form>
