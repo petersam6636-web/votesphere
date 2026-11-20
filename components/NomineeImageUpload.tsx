@@ -223,11 +223,7 @@ export default function NomineeImageUpload({
               : "Drag and drop an image here, or click to browse your device."}
           </p>
 
-          {!uploading && (
-            <span className="mt-4 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-2 text-xs font-semibold text-emerald-300 transition group-hover:bg-emerald-400/15">
-              Choose image
-            </span>
-          )}
+
 
           <p className="mt-3 text-[10px] text-white/25">
             Maximum size: 5MB

@@ -407,7 +407,7 @@ export default function Nominee() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#06110d] px-4 py-8 text-white sm:py-10">
+    <main className="relative min-h-screen overflow-hidden ] px-1 py-4 text-white sm:py-5">
 
       {/* Static decorative bubbles - same style and size as project creation */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -469,22 +469,7 @@ export default function Nominee() {
           </div>
         </div>
 
-        {/* Project information */}
-        <div className="mb-6 rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 backdrop-blur-xl sm:p-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
-            Current project
-          </p>
 
-          <h2 className="mt-2 text-lg font-semibold text-white">
-            {currentProject.name}
-          </h2>
-
-          {currentProject.description && (
-            <p className="mt-2 text-sm leading-6 text-white/45">
-              {currentProject.description}
-            </p>
-          )}
-        </div>
 
         {/* Single nominee form */}
         <section className="rounded-3xl border border-emerald-400/15 bg-[#0b1913]/95 p-5 shadow-[0_0_55px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-8">
@@ -661,7 +646,7 @@ export default function Nominee() {
             className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.08] px-5 py-4 text-sm font-semibold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/[0.14]"
           >
             <span className="text-lg">+</span>
-            Register nominee ({registeredNominees.length + 1})
+            Register nominee ({registeredNominees.length})
           </button>
 
           <p className="mt-3 text-center text-[11px] text-white/30">
