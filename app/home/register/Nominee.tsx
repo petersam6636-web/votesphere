@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,12 +8,18 @@ import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
 
 import ProjectLoading from "@/components/ProjectLoading";
+import NomineeImageUpload from "@/components/NomineeImageUpload";
 
 import type {
   AchievementForm,
   NomineeForm,
   Project,
 } from "@/types/project";
+
+type RegisteredNominee = {
+  form: NomineeForm;
+  imageUrl: string | null;
+};
 
 const createEmptyNominee = (): NomineeForm => ({
   name: "",
@@ -33,15 +40,23 @@ export default function Nominee() {
     setTaskKey,
   } = useApp();
 
-  const [nominees, setNominees] = useState<NomineeForm[]>([
-    createEmptyNominee(),
-  ]);
+  const [draftNominee, setDraftNominee] =
+    useState<NomineeForm>(createEmptyNominee);
+
+  const [draftImageUrl, setDraftImageUrl] = useState<string | null>(
+    null
+  );
+
+  const [registeredNominees, setRegisteredNominees] = useState<
+    RegisteredNominee[]
+  >([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [error, setError] = useState("");
 
-  // Verify the user and recover the current project if necessary.
+  // Verify user and recover current project if necessary.
   useEffect(() => {
     let active = true;
 
@@ -112,113 +127,105 @@ export default function Nominee() {
     setCurrentProject,
   ]);
 
-  const updateNominee = (
-    index: number,
-    updates: Partial<NomineeForm>
-  ) => {
-    setNominees((previous) =>
-      previous.map((nominee, nomineeIndex) =>
-        nomineeIndex === index
-          ? { ...nominee, ...updates }
-          : nominee
-      )
-    );
-  };
-
-  const addNominee = () => {
-    setNominees((previous) => [
+  // Update the current nominee.
+  const updateDraft = (updates: Partial<NomineeForm>) => {
+    setDraftNominee((previous) => ({
       ...previous,
-      createEmptyNominee(),
-    ]);
+      ...updates,
+    }));
   };
 
-  const removeNominee = (index: number) => {
-    setNominees((previous) =>
-      previous.filter((_, nomineeIndex) => nomineeIndex !== index)
-    );
-  };
-
-  const addAchievement = (nomineeIndex: number) => {
-    setNominees((previous) =>
-      previous.map((nominee, index) =>
-        index === nomineeIndex
-          ? {
-              ...nominee,
-              achievements: [
-                ...nominee.achievements,
-                { project: "" },
-              ],
-            }
-          : nominee
-      )
-    );
+  // Add an achievement to the current nominee.
+  const addAchievement = () => {
+    setDraftNominee((previous) => ({
+      ...previous,
+      achievements: [
+        ...previous.achievements,
+        { project: "" },
+      ],
+    }));
   };
 
   const updateAchievement = (
-    nomineeIndex: number,
     achievementIndex: number,
     value: string
   ) => {
-    setNominees((previous) =>
-      previous.map((nominee, index) => {
-        if (index !== nomineeIndex) return nominee;
+    setDraftNominee((previous) => ({
+      ...previous,
+      achievements: previous.achievements.map(
+        (achievement, index) =>
+          index === achievementIndex
+            ? { ...achievement, project: value }
+            : achievement
+      ),
+    }));
+  };
 
-        return {
-          ...nominee,
-          achievements: nominee.achievements.map(
-            (achievement, itemIndex) =>
-              itemIndex === achievementIndex
-                ? { ...achievement, project: value }
-                : achievement
-          ),
-        };
-      })
+  const removeAchievement = (achievementIndex: number) => {
+    setDraftNominee((previous) => ({
+      ...previous,
+      achievements: previous.achievements.filter(
+        (_, index) => index !== achievementIndex
+      ),
+    }));
+  };
+
+  // Validate and register the current nominee locally.
+  const registerNominee = () => {
+    setError("");
+
+    if (!draftNominee.name.trim()) {
+      setError("Please enter the nominee's full name.");
+      return;
+    }
+
+    if (!draftNominee.manifesto.trim()) {
+      setError("Please enter the nominee's manifesto.");
+      return;
+    }
+
+    const hasEmptyAchievement = draftNominee.achievements.some(
+      (achievement) => !achievement.project.trim()
     );
+
+    if (hasEmptyAchievement) {
+      setError(
+        "Please complete or remove every empty achievement."
+      );
+      return;
+    }
+
+    setRegisteredNominees((previous) => [
+      ...previous,
+      {
+        form: {
+          ...draftNominee,
+          achievements: draftNominee.achievements.map((item) => ({
+            ...item,
+          })),
+        },
+        imageUrl: draftImageUrl,
+      },
+    ]);
+
+    // Reset the form for the next nominee.
+    setDraftNominee(createEmptyNominee());
+    setDraftImageUrl(null);
   };
 
-  const removeAchievement = (
-    nomineeIndex: number,
-    achievementIndex: number
-  ) => {
-    setNominees((previous) =>
-      previous.map((nominee, index) =>
-        index === nomineeIndex
-          ? {
-              ...nominee,
-              achievements: nominee.achievements.filter(
-                (_, itemIndex) => itemIndex !== achievementIndex
-              ),
-            }
-          : nominee
-      )
-    );
-  };
+  // Check whether the current form contains unsaved information.
+  const hasDraftContent =
+    Boolean(draftNominee.name.trim()) ||
+    Boolean(draftNominee.manifesto.trim()) ||
+    draftNominee.achievements.length > 0 ||
+    Boolean(draftImageUrl);
 
-  const uploadNomineeImage = async (
-    image: File,
-    nomineeIndex: number
-  ): Promise<string> => {
-    const safeFileName = image.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-
-    const filePath = `${userInfo}/${currentProject!.id}/${Date.now()}-${nomineeIndex}-${safeFileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("nominee_images")
-      .upload(filePath, image, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage
-      .from("nominee_images")
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  };
-
+  // Refresh projects with nominees and achievements.
   const refreshProjects = async () => {
+    if (!userInfo || !currentProject) {
+      throw new Error("Project information is missing.");
+    }
+
     const { data, error: fetchError } = await supabase
       .from("projects")
       .select(`
@@ -239,7 +246,7 @@ export default function Nominee() {
     setProject(updatedProjects);
 
     const updatedCurrentProject = updatedProjects.find(
-      (item) => item.id === currentProject!.id
+      (item) => item.id === currentProject.id
     );
 
     if (updatedCurrentProject) {
@@ -247,62 +254,34 @@ export default function Nominee() {
     }
   };
 
+  // Save registered nominees and activate voting.
   const activateVoting = async () => {
     if (!userInfo || !currentProject) {
       setError("Your project information is missing. Please try again.");
       return;
     }
 
-    if (nominees.length === 0) {
-      setError("Please add at least one nominee.");
+    if (registeredNominees.length === 0) {
+      setError("Please register at least one nominee before continuing.");
       return;
     }
 
-    // Validate all nominee details before saving anything.
-    for (let index = 0; index < nominees.length; index++) {
-      const nominee = nominees[index];
-
-      if (!nominee.name.trim()) {
-        setError(`Please enter a name for nominee ${index + 1}.`);
-        return;
-      }
-
-      if (!nominee.manifesto.trim()) {
-        setError(`Please enter a manifesto for nominee ${index + 1}.`);
-        return;
-      }
-
-      const hasEmptyAchievement = nominee.achievements.some(
-        (achievement) => !achievement.project.trim()
+    if (hasDraftContent) {
+      setError(
+        "You have an unfinished nominee. Please register that nominee or clear the form before applying."
       );
-
-      if (hasEmptyAchievement) {
-        setError(
-          `Please complete or remove the empty achievement for nominee ${index + 1}.`
-        );
-        return;
-      }
+      setShowConfirmation(false);
+      return;
     }
 
     setSaving(true);
     setError("");
 
     try {
-      // 1. Save every nominee and its achievements.
-      for (let index = 0; index < nominees.length; index++) {
-        const nominee = nominees[index];
+      // STEP 1: Save all registered nominees.
+      for (const registered of registeredNominees) {
+        const nominee = registered.form;
 
-        let imageUrl: string | null = null;
-
-        // Upload the image only when the user selected one.
-        if (nominee.image) {
-          imageUrl = await uploadNomineeImage(
-            nominee.image,
-            index
-          );
-        }
-
-        // 2. Insert the nominee and get its generated ID.
         const { data: savedNominee, error: nomineeError } =
           await supabase
             .from("nominees")
@@ -311,14 +290,14 @@ export default function Nominee() {
               user_id: userInfo,
               name: nominee.name.trim(),
               manifesto: nominee.manifesto.trim(),
-              image: imageUrl,
+              image: registered.imageUrl,
             })
             .select("id")
             .single();
 
         if (nomineeError) throw nomineeError;
 
-        // 3. Insert achievements using the nominee's generated ID.
+        // STEP 2: Save achievements for this nominee.
         const achievements = nominee.achievements
           .filter((item: AchievementForm) => item.project.trim())
           .map((item) => ({
@@ -335,7 +314,7 @@ export default function Nominee() {
         }
       }
 
-      // 4. Find one task belonging to this user.
+      // STEP 3: Find one task belonging to this user.
       const { data: task, error: taskFetchError } = await supabase
         .from("tasks")
         .select("id")
@@ -345,12 +324,13 @@ export default function Nominee() {
 
       if (taskFetchError) throw taskFetchError;
 
-      // 5. Update the task key, or create a task if none exists.
+      // STEP 4: Activate the task or create one if none exists.
       if (task) {
         const { error: taskUpdateError } = await supabase
           .from("tasks")
           .update({ key: true })
-          .eq("id", task.id);
+          .eq("id", task.id)
+          .eq("user_id", userInfo);
 
         if (taskUpdateError) throw taskUpdateError;
       } else {
@@ -364,13 +344,12 @@ export default function Nominee() {
         if (taskInsertError) throw taskInsertError;
       }
 
-      // 6. Refresh all projects with their nominees and achievements.
+      // STEP 5: Refresh projects and shared state.
       await refreshProjects();
 
-      // 7. Update shared state so the homepage responds immediately.
       setTaskKey(true);
 
-      // 8. Return to the homepage.
+      // STEP 6: Return to homepage.
       router.replace("/home");
     } catch (err: unknown) {
       setError(
@@ -380,7 +359,27 @@ export default function Nominee() {
       );
     } finally {
       setSaving(false);
+      setShowConfirmation(false);
     }
+  };
+
+  // Open confirmation before saving.
+  const handleApplyForVoting = () => {
+    setError("");
+
+    if (registeredNominees.length === 0) {
+      setError("Please register at least one nominee first.");
+      return;
+    }
+
+    if (hasDraftContent) {
+      setError(
+        "Please register your current nominee before applying for voting."
+      );
+      return;
+    }
+
+    setShowConfirmation(true);
   };
 
   if (loading) {
@@ -396,6 +395,7 @@ export default function Nominee() {
           </p>
 
           <button
+            type="button"
             onClick={() => router.push("/home/projects/create")}
             className="mt-5 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-[#04100a]"
           >
@@ -407,228 +407,338 @@ export default function Nominee() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#06110d] px-4 py-10 text-white">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-emerald-500/10 blur-[120px]" />
-      <div className="pointer-events-none absolute -bottom-40 -right-20 h-96 w-96 rounded-full bg-green-500/10 blur-[130px]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#06110d] px-4 py-8 text-white sm:py-10">
 
-      <div className="relative mx-auto max-w-3xl">
+      {/* Static decorative bubbles - same style and size as project creation */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+
+        <div className="absolute left-[5%] top-[12%] h-40 w-40 rounded-full border border-emerald-300/15 bg-gradient-to-br from-emerald-300/[0.09] via-emerald-500/[0.035] to-transparent shadow-[inset_0_0_35px_rgba(52,211,153,0.07)] sm:left-[10%] sm:h-52 sm:w-52" />
+
+        <div className="absolute left-[38%] top-[16%] h-7 w-7 rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] sm:h-10 sm:w-10" />
+
+        <div className="absolute right-[8%] top-[24%] h-16 w-16 rounded-full border border-emerald-300/20 bg-emerald-300/[0.05] shadow-[inset_0_0_20px_rgba(52,211,153,0.10)] sm:right-[14%] sm:h-24 sm:w-24" />
+
+        <div className="absolute left-[18%] top-[48%] h-8 w-8 rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] sm:left-[24%] sm:h-11 sm:w-11" />
+
+        <div className="absolute -right-12 top-[47%] h-44 w-44 rounded-full border border-emerald-300/15 bg-gradient-to-br from-emerald-300/[0.08] via-emerald-500/[0.03] to-transparent shadow-[inset_0_0_40px_rgba(52,211,153,0.07)] sm:right-[3%] sm:h-56 sm:w-56" />
+
+        <div className="absolute left-[48%] top-[76%] h-6 w-6 rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] sm:h-9 sm:w-9" />
+
+        <div className="absolute bottom-[8%] left-[7%] h-20 w-20 rounded-full border border-emerald-300/15 bg-emerald-300/[0.05] shadow-[inset_0_0_25px_rgba(52,211,153,0.08)] sm:left-[16%] sm:h-28 sm:w-28" />
+
+        <div className="absolute bottom-[16%] right-[12%] h-8 w-8 rounded-full border border-emerald-300/25 bg-emerald-300/[0.07] sm:right-[22%] sm:h-10 sm:w-10" />
+
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 mx-auto max-w-3xl">
+
         {/* Page heading */}
-        <div className="mb-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">
-            Project setup · Step 2
-          </p>
+        <div className="mb-7">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-3 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
 
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Register your nominees
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-white/50">
-            Add the people participating in this election. You can
-            add as many nominees as you need.
-          </p>
-
-          <div className="mt-5 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.04] p-4">
-            <p className="text-xs text-emerald-400">
-              CURRENT PROJECT
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
+              Project setup · Step 2
             </p>
+          </div>
 
-            <h2 className="mt-1 font-semibold">
-              {currentProject.name}
-            </h2>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                Register your nominees
+              </h1>
 
-            {currentProject.description && (
-              <p className="mt-1 text-sm text-white/45">
-                {currentProject.description}
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/50">
+                Add each nominee individually. Once registered, the
+                form will be ready for the next person.
               </p>
-            )}
+            </div>
+
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-4 py-3">
+              <span className="text-xl font-bold tabular-nums text-emerald-300">
+                {registeredNominees.length}
+              </span>
+
+              <span className="text-xs leading-4 text-white/50">
+                Nominees
+                <br />
+                registered
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Nominee forms */}
-        <div className="space-y-6">
-          {nominees.map((nominee, nomineeIndex) => (
-            <section
-              key={nomineeIndex}
-              className="rounded-3xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 shadow-[0_0_50px_rgba(16,185,129,0.04)] backdrop-blur-xl sm:p-7"
-            >
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-                    Nominee {nomineeIndex + 1}
-                  </p>
+        {/* Project information */}
+        <div className="mb-6 rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 backdrop-blur-xl sm:p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
+            Current project
+          </p>
 
-                  <h2 className="mt-1 text-lg font-semibold">
-                    Nominee information
-                  </h2>
-                </div>
+          <h2 className="mt-2 text-lg font-semibold text-white">
+            {currentProject.name}
+          </h2>
 
-                {nominees.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeNominee(nomineeIndex)}
-                    className="rounded-lg border border-red-400/20 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/10"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-5">
-                <div>
-                  <label
-                    htmlFor={`nominee-name-${nomineeIndex}`}
-                    className="mb-2 block text-sm font-medium text-white/80"
-                  >
-                    Full name
-                  </label>
-
-                  <input
-                    id={`nominee-name-${nomineeIndex}`}
-                    value={nominee.name}
-                    onChange={(event) =>
-                      updateNominee(nomineeIndex, {
-                        name: event.target.value,
-                      })
-                    }
-                    placeholder="Enter nominee's full name"
-                    className="w-full rounded-xl border border-emerald-400/15 bg-black/20 px-4 py-3 text-sm outline-none transition placeholder:text-white/25 focus:border-emerald-400/60"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor={`nominee-manifesto-${nomineeIndex}`}
-                    className="mb-2 block text-sm font-medium text-white/80"
-                  >
-                    Manifesto
-                  </label>
-
-                  <textarea
-                    id={`nominee-manifesto-${nomineeIndex}`}
-                    value={nominee.manifesto}
-                    onChange={(event) =>
-                      updateNominee(nomineeIndex, {
-                        manifesto: event.target.value,
-                      })
-                    }
-                    rows={4}
-                    placeholder="What does this nominee stand for?"
-                    className="w-full resize-none rounded-xl border border-emerald-400/15 bg-black/20 px-4 py-3 text-sm outline-none transition placeholder:text-white/25 focus:border-emerald-400/60"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor={`nominee-image-${nomineeIndex}`}
-                    className="mb-2 block text-sm font-medium text-white/80"
-                  >
-                    Nominee image
-                    <span className="ml-2 text-xs text-white/35">
-                      Optional
-                    </span>
-                  </label>
-
-                  <input
-                    id={`nominee-image-${nomineeIndex}`}
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      updateNominee(nomineeIndex, {
-                        image: event.target.files?.[0] ?? null,
-                      })
-                    }
-                    className="block w-full rounded-xl border border-emerald-400/15 bg-black/20 px-3 py-3 text-sm text-white/60 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-emerald-300"
-                  />
-
-                  {nominee.image && (
-                    <p className="mt-2 text-xs text-emerald-300">
-                      Selected: {nominee.image.name}
-                    </p>
-                  )}
-                </div>
-
-                {/* Achievements */}
-                <div className="border-t border-white/10 pt-5">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold">
-                        Achievements
-                      </h3>
-
-                      <p className="mt-1 text-xs text-white/40">
-                        Add achievements for this nominee, if any.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => addAchievement(nomineeIndex)}
-                      className="shrink-0 rounded-lg border border-emerald-400/20 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400/10"
-                    >
-                      + Add
-                    </button>
-                  </div>
-
-                  {nominee.achievements.length === 0 && (
-                    <p className="rounded-xl border border-dashed border-white/10 px-4 py-5 text-center text-xs text-white/35">
-                      No achievements added. This section is optional.
-                    </p>
-                  )}
-
-                  <div className="space-y-3">
-                    {nominee.achievements.map(
-                      (achievement, achievementIndex) => (
-                        <div
-                          key={achievementIndex}
-                          className="flex items-start gap-2"
-                        >
-                          <textarea
-                            value={achievement.project}
-                            onChange={(event) =>
-                              updateAchievement(
-                                nomineeIndex,
-                                achievementIndex,
-                                event.target.value
-                              )
-                            }
-                            rows={2}
-                            placeholder="Describe an achievement..."
-                            className="min-w-0 flex-1 resize-none rounded-xl border border-emerald-400/15 bg-black/20 px-4 py-3 text-sm outline-none placeholder:text-white/25 focus:border-emerald-400/60"
-                          />
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeAchievement(
-                                nomineeIndex,
-                                achievementIndex
-                              )
-                            }
-                            aria-label="Remove achievement"
-                            className="rounded-lg px-3 py-3 text-sm text-red-300 transition hover:bg-red-500/10"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-          ))}
+          {currentProject.description && (
+            <p className="mt-2 text-sm leading-6 text-white/45">
+              {currentProject.description}
+            </p>
+          )}
         </div>
 
-        {/* Add nominee */}
-        <button
-          type="button"
-          onClick={addNominee}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400/30 bg-emerald-400/[0.04] px-5 py-4 text-sm font-semibold text-emerald-300 transition hover:border-emerald-400/60 hover:bg-emerald-400/[0.08]"
-        >
-          <span className="text-lg">+</span>
-          Add another nominee
-        </button>
+        {/* Single nominee form */}
+        <section className="rounded-3xl border border-emerald-400/15 bg-[#0b1913]/95 p-5 shadow-[0_0_55px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-8">
 
+          <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                New nominee
+              </p>
+
+              <h2 className="mt-1 text-xl font-bold">
+                Nominee information
+              </h2>
+
+              <p className="mt-1 text-xs text-white/40">
+                Complete the details below and register this nominee.
+              </p>
+            </div>
+
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
+              #{registeredNominees.length + 1}
+            </span>
+          </div>
+
+          <div className="space-y-6">
+
+            {/* Full name */}
+            <div>
+              <label
+                htmlFor="nominee-name"
+                className="mb-2 block text-sm font-medium text-white/80"
+              >
+                Full name
+              </label>
+
+              <input
+                id="nominee-name"
+                value={draftNominee.name}
+                onChange={(event) =>
+                  updateDraft({ name: event.target.value })
+                }
+                placeholder="Enter nominee's full name"
+                className="w-full rounded-xl border border-emerald-400/15 bg-black/30 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10 [&:-webkit-autofill]:[-webkit-text-fill-color:white] [&:-webkit-autofill]:[box-shadow:0_0_0px_1000px_#0b1913_inset]"
+              />
+            </div>
+
+            {/* Manifesto */}
+            <div>
+              <label
+                htmlFor="nominee-manifesto"
+                className="mb-2 block text-sm font-medium text-white/80"
+              >
+                Manifesto
+              </label>
+
+              <textarea
+                id="nominee-manifesto"
+                value={draftNominee.manifesto}
+                onChange={(event) =>
+                  updateDraft({ manifesto: event.target.value })
+                }
+                rows={4}
+                placeholder="What does this nominee stand for? What changes or improvements do they want to bring?"
+                className="w-full resize-none rounded-xl border border-emerald-400/15 bg-black/30 px-4 py-3.5 text-sm leading-6 text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10"
+              />
+            </div>
+
+            {/* Image upload component */}
+            <div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-white/80">
+                  Nominee image
+                  <span className="ml-2 text-xs font-normal text-white/35">
+                    Optional
+                  </span>
+                </label>
+
+                <p className="mt-1 text-xs text-white/40">
+                  Upload a clear picture of this nominee.
+                </p>
+              </div>
+
+              <NomineeImageUpload
+                key={registeredNominees.length}
+                userId={userInfo || ""}
+                projectId={currentProject.id}
+                imageUrl={draftImageUrl}
+                onUploaded={(file, url) => {
+                  updateDraft({ image: file });
+                  setDraftImageUrl(url);
+                }}
+                onRemove={() => {
+                  updateDraft({ image: null });
+                  setDraftImageUrl(null);
+                }}
+              />
+            </div>
+
+            {/* Achievements */}
+            <div className="border-t border-white/10 pt-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">
+                    Achievements
+                  </h3>
+
+                  <p className="mt-1 text-xs text-white/40">
+                    Add achievements for this nominee, if any.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addAchievement}
+                  className="rounded-lg border border-emerald-400/20 px-4 py-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400/10"
+                >
+                  + Add achievement
+                </button>
+              </div>
+
+              {draftNominee.achievements.length === 0 && (
+                <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-6 text-center">
+                  <p className="text-xs text-white/35">
+                    No achievements added yet.
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-white/25">
+                    This section is optional.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {draftNominee.achievements.map(
+                  (achievement, achievementIndex) => (
+                    <div
+                      key={achievementIndex}
+                      className="flex items-start gap-2"
+                    >
+                      <textarea
+                        value={achievement.project}
+                        onChange={(event) =>
+                          updateAchievement(
+                            achievementIndex,
+                            event.target.value
+                          )
+                        }
+                        rows={2}
+                        placeholder="Describe an achievement..."
+                        className="min-w-0 flex-1 resize-none rounded-xl border border-emerald-400/15 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-emerald-400/60"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeAchievement(achievementIndex)
+                        }
+                        aria-label="Remove achievement"
+                        className="rounded-lg border border-red-400/15 px-3 py-3 text-sm text-red-300 transition hover:bg-red-500/10"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Register current nominee */}
+          <button
+            type="button"
+            onClick={registerNominee}
+            className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.08] px-5 py-4 text-sm font-semibold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/[0.14]"
+          >
+            <span className="text-lg">+</span>
+            Register nominee ({registeredNominees.length + 1})
+          </button>
+
+          <p className="mt-3 text-center text-[11px] text-white/30">
+            Register this nominee to clear the form and add another person.
+          </p>
+        </section>
+
+        {/* Registered nominee count */}
+        <div className="mt-6 rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 backdrop-blur-xl sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                Registered nominees
+              </h3>
+
+              <p className="mt-1 text-xs text-white/40">
+                Your nominees are being collected for this election.
+              </p>
+            </div>
+
+            <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold tabular-nums text-emerald-300">
+              ({registeredNominees.length})
+            </span>
+          </div>
+
+          {registeredNominees.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-white/10 px-4 py-6 text-center">
+              <p className="text-xs text-white/40">
+                No nominees registered yet.
+              </p>
+
+              <p className="mt-1 text-[10px] text-white/25">
+                Complete the form above to register your first nominee.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-2">
+              {registeredNominees.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/20 p-3"
+                >
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.form.name}
+                      className="h-10 w-10 rounded-full border border-emerald-400/20 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 text-sm font-semibold text-emerald-300">
+                      {item.form.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">
+                      {item.form.name}
+                    </p>
+
+                    <p className="text-[10px] text-white/35">
+                      Nominee {index + 1}
+                      {" · "}
+                      {item.form.achievements.length} achievement
+                      {item.form.achievements.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-2.5 py-1 text-[9px] font-semibold text-emerald-300">
+                    Added
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Error */}
         {error && (
           <p
             role="alert"
@@ -638,50 +748,106 @@ export default function Nominee() {
           </p>
         )}
 
-        {/* Final action */}
-        <div className="mt-8 rounded-2xl border border-emerald-400/15 bg-[#0b1913]/80 p-5">
-          <div className="mb-5 flex items-center justify-between">
+        {/* Apply for voting */}
+        <div className="mt-6 rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 backdrop-blur-xl sm:p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold">
+              <h3 className="text-sm font-semibold text-white">
                 Ready to apply?
-              </p>
+              </h3>
 
               <p className="mt-1 text-xs text-white/40">
-                {nominees.length} nominee
-                {nominees.length === 1 ? "" : "s"} added
+                {registeredNominees.length} nominee
+                {registeredNominees.length === 1 ? "" : "s"} added to
+                this election.
               </p>
             </div>
 
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
               Step 2 of 2
             </span>
           </div>
 
           <button
             type="button"
-            onClick={activateVoting}
-            disabled={saving || loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-bold text-[#04100a] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleApplyForVoting}
+            disabled={saving || registeredNominees.length === 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-4 text-sm font-bold text-[#04100a] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving ? (
-              <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#04100a]/30 border-t-[#04100a]" />
-                Saving nominees...
-              </>
-            ) : (
-              <>
-                Apply for voting
-                <span aria-hidden="true">→</span>
-              </>
-            )}
+            Apply for voting
+            <span aria-hidden="true">→</span>
           </button>
 
-          <p className="mt-3 text-center text-xs text-white/35">
-            Your nominees and achievements will be saved before
-            voting is activated.
+          <p className="mt-3 text-center text-[11px] leading-5 text-white/30">
+            You will be asked to confirm before your nominees are saved
+            and voting is activated.
           </p>
         </div>
       </div>
+
+      {/* Confirmation modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirmation-title"
+            className="w-full max-w-md rounded-3xl border border-emerald-400/20 bg-[#0b1913] p-6 shadow-[0_0_60px_rgba(0,0,0,0.5)] sm:p-7"
+          >
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-xl text-emerald-300">
+              ✓
+            </div>
+
+            <h2
+              id="confirmation-title"
+              className="text-xl font-bold text-white"
+            >
+              Apply for voting?
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-white/50">
+              Are you sure you want to continue? You are about to save{" "}
+              <span className="font-semibold text-emerald-300">
+                {registeredNominees.length} nominee
+                {registeredNominees.length === 1 ? "" : "s"}
+              </span>{" "}
+              for <span className="font-semibold text-white">{currentProject.name}</span>{" "}
+              and activate voting.
+            </p>
+
+            <p className="mt-3 text-xs leading-5 text-white/35">
+              Make sure all nominee details are correct before continuing.
+            </p>
+
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setShowConfirmation(false)}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/[0.08] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={saving}
+                onClick={activateVoting}
+                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-[#04100a] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#04100a]/30 border-t-[#04100a]" />
+                    Saving...
+                  </>
+                ) : (
+                  "Yes, continue"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
