@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 import {
   Vote,
@@ -18,8 +18,6 @@ import {
   Timer,
   Zap,
   Hourglass,
-  Sparkles,
-  Radio,
   X,
   AlertTriangle,
 } from "lucide-react";
@@ -41,6 +39,31 @@ type TimeLeft = {
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const MINUTE = 60 * 1000;
+
+// --------------------------------------------------
+// COUNTDOWN BACKGROUND BUBBLES
+// --------------------------------------------------
+
+const backgroundBubbles = Array.from({ length: 35 }, (_, index) => {
+  const seed = index + 1;
+
+  const random = (value: number) => {
+    const x = Math.sin(seed * value) * 10000;
+    return x - Math.floor(x);
+  };
+
+  return {
+    id: index,
+    size: 8 + random(12.9898) * 52,
+    left: random(78.233) * 100,
+    top: random(39.425) * 100,
+    duration: 9 + random(17.123) * 17,
+    delay: random(91.77) * -24,
+    driftX: -55 + random(54.321) * 110,
+    driftY: -65 + random(28.31) * 130,
+    opacity: 0.12 + random(67.91) * 0.25,
+  };
+});
 
 function calculateTimeLeft(milliseconds: number): TimeLeft {
   const remaining = Math.max(0, milliseconds);
@@ -420,7 +443,7 @@ export default function ActiveProject() {
         </div>
       </section>
 
-      {/* FULL-WIDTH COUNTDOWN WITH FLOATING BACKGROUND BUBBLE */}
+      {/* FULL-WIDTH COUNTDOWN WITH RANDOM FLOATING BUBBLES */}
 
       <section
         className={`relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border transition-colors duration-500 ${
@@ -447,101 +470,82 @@ export default function ActiveProject() {
           }`}
         />
 
-        {/* Large floating bubble behind the countdown */}
+        {/* Random floating bubbles */}
 
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
-          <div className="relative flex h-[340px] w-[340px] shrink-0 animate-[bounce_6s_ease-in-out_infinite] items-center justify-center opacity-70 sm:h-[420px] sm:w-[420px]">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <style jsx>{`
+            @keyframes countdown-bubble-drift {
+              0% {
+                transform: translate3d(0, 0, 0) scale(0.88);
+              }
 
-            <div
-              className={`absolute inset-0 rounded-full border ${
-                isUrgent
-                  ? "border-red-400/[0.12]"
-                  : "border-emerald-400/[0.12]"
+              25% {
+                transform: translate3d(
+                  calc(var(--bubble-x) * 0.55),
+                  calc(var(--bubble-y) * -0.25),
+                  0
+                ) scale(1.05);
+              }
+
+              50% {
+                transform: translate3d(
+                  var(--bubble-x),
+                  var(--bubble-y),
+                  0
+                ) scale(0.96);
+              }
+
+              75% {
+                transform: translate3d(
+                  calc(var(--bubble-x) * -0.35),
+                  calc(var(--bubble-y) * 0.45),
+                  0
+                ) scale(1.08);
+              }
+
+              100% {
+                transform: translate3d(0, 0, 0) scale(0.88);
+              }
+            }
+
+            .countdown-bubble {
+              position: absolute;
+              border-radius: 9999px;
+              border: 1px solid currentColor;
+              background: currentColor;
+              box-shadow:
+                inset 0 0 10px currentColor,
+                0 0 18px currentColor;
+              filter: blur(0.2px);
+              animation-name: countdown-bubble-drift;
+              animation-timing-function: ease-in-out;
+              animation-iteration-count: infinite;
+              will-change: transform;
+            }
+          `}</style>
+
+          {backgroundBubbles.map((bubble) => (
+            <span
+              key={bubble.id}
+              className={`countdown-bubble ${
+                isUrgent ? "text-red-300" : "text-emerald-300"
               }`}
+              style={
+                {
+                  left: `${bubble.left}%`,
+                  top: `${bubble.top}%`,
+                  width: `${bubble.size}px`,
+                  height: `${bubble.size}px`,
+                  opacity: bubble.opacity,
+                  animationDuration: `${bubble.duration}s`,
+                  animationDelay: `${bubble.delay}s`,
+                  "--bubble-x": `${bubble.driftX}px`,
+                  "--bubble-y": `${bubble.driftY}px`,
+                } as CSSProperties
+              }
+              aria-hidden="true"
             />
-
-            <div
-              className={`absolute inset-8 rounded-full border ${
-                isUrgent
-                  ? "border-red-400/[0.12]"
-                  : "border-emerald-400/[0.12]"
-              }`}
-            />
-
-            <div
-              className={`absolute inset-16 rounded-full border ${
-                isUrgent
-                  ? "border-red-400/[0.10]"
-                  : "border-emerald-400/[0.10]"
-              }`}
-            />
-
-            <div
-              className={`absolute inset-20 rounded-full blur-2xl ${
-                isUrgent
-                  ? "bg-red-400/[0.10]"
-                  : "bg-emerald-400/[0.10]"
-              }`}
-            />
-
-            <div
-              className={`relative flex h-28 w-28 items-center justify-center rounded-full border backdrop-blur-xl sm:h-36 sm:w-36 ${
-                isUrgent
-                  ? "border-red-400/20 bg-red-400/[0.06] shadow-[0_0_80px_rgba(239,68,68,0.08)]"
-                  : "border-emerald-400/20 bg-emerald-400/[0.06] shadow-[0_0_80px_rgba(16,185,129,0.10)]"
-              }`}
-            >
-              {isUrgent ? (
-                <Zap
-                  size={48}
-                  strokeWidth={1.2}
-                  className="text-red-400/50"
-                />
-              ) : (
-                <ShieldCheck
-                  size={52}
-                  strokeWidth={1.2}
-                  className="text-emerald-400/50"
-                />
-              )}
-            </div>
-
-            <div
-              className={`absolute right-[16%] top-[16%] h-4 w-4 animate-[bounce_4s_ease-in-out_infinite] rounded-full border ${
-                isUrgent
-                  ? "border-red-300/40 bg-red-400/20"
-                  : "border-emerald-300/40 bg-emerald-400/20"
-              }`}
-            />
-
-            <div
-              className={`absolute bottom-[15%] left-[16%] h-6 w-6 animate-[bounce_5s_ease-in-out_infinite] rounded-full border ${
-                isUrgent
-                  ? "border-red-300/30 bg-red-400/10"
-                  : "border-emerald-300/30 bg-emerald-400/10"
-              }`}
-            />
-
-            <div
-              className={`absolute left-[20%] top-[22%] flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md ${
-                isUrgent
-                  ? "border-red-400/20 bg-red-400/10 text-red-300/50"
-                  : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300/50"
-              }`}
-            >
-              <Sparkles size={15} />
-            </div>
-
-            <div
-              className={`absolute bottom-[22%] right-[18%] flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md ${
-                isUrgent
-                  ? "border-red-400/20 bg-red-400/10 text-red-300/50"
-                  : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300/50"
-              }`}
-            >
-              <Radio size={13} />
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Countdown content */}
