@@ -20,6 +20,8 @@ import {
   Hourglass,
   Sparkles,
   Radio,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase-client";
@@ -78,6 +80,9 @@ export default function ActiveProject() {
   const [loading, setLoading] = useState(true);
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState("");
+
+  // Controls the manual confirmation popup.
+  const [showEndConfirmation, setShowEndConfirmation] = useState(false);
 
   // Prevent multiple automatic or manual ending requests.
   const endingRef = useRef(false);
@@ -214,6 +219,15 @@ export default function ActiveProject() {
   }, [userInfo, setTaskKey]);
 
   // --------------------------------------------------
+  // CONFIRM MANUAL ELECTION END
+  // --------------------------------------------------
+
+  const confirmEndElection = useCallback(async () => {
+    setShowEndConfirmation(false);
+    await endElection();
+  }, [endElection]);
+
+  // --------------------------------------------------
   // LIVE COUNTDOWN
   // --------------------------------------------------
 
@@ -230,6 +244,7 @@ export default function ActiveProject() {
 
       setRemainingMs(remaining);
 
+      // Automatic expiry does not require manual confirmation.
       if (remaining <= 0) {
         void endElection();
       }
@@ -246,6 +261,26 @@ export default function ActiveProject() {
       window.clearInterval(interval);
     };
   }, [activeProject, endElection]);
+
+  // --------------------------------------------------
+  // CLOSE CONFIRMATION WITH ESCAPE KEY
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (!showEndConfirmation) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !ending) {
+        setShowEndConfirmation(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showEndConfirmation, ending]);
 
   // --------------------------------------------------
   // LOADING SCREEN
@@ -416,7 +451,6 @@ export default function ActiveProject() {
 
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
           <div className="relative flex h-[340px] w-[340px] shrink-0 animate-[bounce_6s_ease-in-out_infinite] items-center justify-center opacity-70 sm:h-[420px] sm:w-[420px]">
-            {/* Outer ring */}
 
             <div
               className={`absolute inset-0 rounded-full border ${
@@ -426,8 +460,6 @@ export default function ActiveProject() {
               }`}
             />
 
-            {/* Middle ring */}
-
             <div
               className={`absolute inset-8 rounded-full border ${
                 isUrgent
@@ -435,8 +467,6 @@ export default function ActiveProject() {
                   : "border-emerald-400/[0.12]"
               }`}
             />
-
-            {/* Inner ring */}
 
             <div
               className={`absolute inset-16 rounded-full border ${
@@ -446,8 +476,6 @@ export default function ActiveProject() {
               }`}
             />
 
-            {/* Main glowing surface */}
-
             <div
               className={`absolute inset-20 rounded-full blur-2xl ${
                 isUrgent
@@ -455,8 +483,6 @@ export default function ActiveProject() {
                   : "bg-emerald-400/[0.10]"
               }`}
             />
-
-            {/* Center icon bubble */}
 
             <div
               className={`relative flex h-28 w-28 items-center justify-center rounded-full border backdrop-blur-xl sm:h-36 sm:w-36 ${
@@ -479,8 +505,6 @@ export default function ActiveProject() {
                 />
               )}
             </div>
-
-            {/* Floating decorative orbs */}
 
             <div
               className={`absolute right-[16%] top-[16%] h-4 w-4 animate-[bounce_4s_ease-in-out_infinite] rounded-full border ${
@@ -569,7 +593,7 @@ export default function ActiveProject() {
             </div>
           </div>
 
-          {/* Countdown units */}
+          {/* TRANSPARENT GLASS COUNTDOWN UNITS */}
 
           <div className="mt-8 grid grid-cols-4 gap-2 sm:gap-4">
             {timeUnits.map((unit, index) => (
@@ -578,37 +602,43 @@ export default function ActiveProject() {
                 className="group min-w-0 text-center"
               >
                 <div
-                  className={`relative flex aspect-square min-h-[65px] items-center justify-center overflow-hidden rounded-xl border backdrop-blur-xl transition-all duration-300 sm:rounded-2xl ${
+                  className={`relative flex aspect-square min-h-[65px] items-center justify-center overflow-hidden rounded-xl border backdrop-blur-sm transition-all duration-300 sm:rounded-2xl ${
                     isUrgent
-                      ? "border-red-500/20 bg-[#251010]/85"
-                      : "border-white/[0.10] bg-[#080e0b]/75 group-hover:border-emerald-400/25 group-hover:bg-emerald-400/[0.06]"
+                      ? "border-red-400/30 bg-red-400/[0.10] shadow-[inset_0_0_25px_rgba(239,68,68,0.04)]"
+                      : "border-emerald-300/25 bg-emerald-400/[0.09] shadow-[inset_0_0_25px_rgba(16,185,129,0.04)] group-hover:border-emerald-300/45 group-hover:bg-emerald-400/[0.14]"
                   }`}
                 >
+                  {/* Glass highlight */}
+
                   <div
                     className={`pointer-events-none absolute inset-x-0 top-0 h-px ${
                       isUrgent
-                        ? "bg-red-400/30"
-                        : "bg-emerald-300/20"
+                        ? "bg-red-300/40"
+                        : "bg-emerald-200/40"
                     }`}
                   />
+
+                  {/* Countdown number */}
 
                   <span
                     className={`relative font-mono text-xl font-bold tracking-tighter tabular-nums sm:text-3xl md:text-4xl ${
                       isUrgent
-                        ? "text-red-400"
+                        ? "text-red-300"
                         : index === 3
-                          ? "text-emerald-300"
+                          ? "text-emerald-200"
                           : "text-white"
                     }`}
                   >
                     {pad(unit.value)}
                   </span>
 
+                  {/* Bottom glow */}
+
                   <div
                     className={`pointer-events-none absolute bottom-0 left-1/2 h-1 w-1/3 -translate-x-1/2 rounded-full blur-md ${
                       isUrgent
-                        ? "bg-red-400/30"
-                        : "bg-emerald-400/20"
+                        ? "bg-red-300/40"
+                        : "bg-emerald-300/40"
                     }`}
                   />
                 </div>
@@ -616,8 +646,8 @@ export default function ActiveProject() {
                 <p
                   className={`mt-2 text-[9px] font-bold uppercase tracking-[0.12em] sm:text-[10px] ${
                     isUrgent
-                      ? "text-red-300/70"
-                      : "text-zinc-400"
+                      ? "text-red-300/80"
+                      : "text-emerald-100/70"
                   }`}
                 >
                   {unit.label}
@@ -958,27 +988,127 @@ export default function ActiveProject() {
 
           <button
             type="button"
-            onClick={() => void endElection()}
+            onClick={() => setShowEndConfirmation(true)}
             disabled={ending || isExpired}
             className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 text-xs font-semibold text-red-300 transition-all hover:border-red-500/40 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {ending ? (
-              <>
-                <Loader2
-                  size={15}
-                  className="animate-spin"
-                />
-                Ending Election...
-              </>
-            ) : (
-              <>
-                <Flag size={15} />
-                Force End Election
-              </>
-            )}
+            <Flag size={15} />
+            Force End Election
           </button>
         </div>
       </section>
+
+      {/* END ELECTION CONFIRMATION POPUP */}
+
+      {showEndConfirmation && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/60 px-4 py-8 backdrop-blur-md"
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              !ending
+            ) {
+              setShowEndConfirmation(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="end-election-title"
+            className="relative w-full max-w-md animate-in fade-in zoom-in-95 duration-200 overflow-hidden rounded-3xl border border-red-400/20 bg-gradient-to-br from-[#1c1717] via-[#151111] to-[#100e0e] p-6 shadow-[0_25px_100px_rgba(0,0,0,0.65)] sm:p-8"
+          >
+            {/* Decorative glow */}
+
+            <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-red-500/[0.10] blur-[80px]" />
+
+            <div className="relative">
+
+              {/* Close button */}
+
+              <button
+                type="button"
+                onClick={() => setShowEndConfirmation(false)}
+                disabled={ending}
+                aria-label="Close confirmation"
+                className="absolute right-0 top-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-400 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <X size={17} />
+              </button>
+
+              {/* Warning icon */}
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-400/20 bg-red-500/10 text-red-400 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+                <AlertTriangle size={27} strokeWidth={1.6} />
+              </div>
+
+              {/* Confirmation text */}
+
+              <h2
+                id="end-election-title"
+                className="mt-6 text-xl font-bold tracking-tight text-white sm:text-2xl"
+              >
+                End this election?
+              </h2>
+
+              <p className="mt-3 text-sm leading-7 text-zinc-400">
+                Are you sure you want to end{" "}
+                <span className="font-semibold text-white">
+                  {activeProject.name}
+                </span>
+                ?
+              </p>
+
+              <div className="mt-4 rounded-xl border border-red-400/10 bg-red-500/[0.06] p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle
+                    size={17}
+                    className="mt-0.5 shrink-0 text-red-400"
+                  />
+
+                  <p className="text-xs leading-6 text-red-200/80">
+                    Ending this election will immediately deactivate
+                    voting. Voters will no longer be able to participate.
+                    This action should only be taken when you are certain.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+
+              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowEndConfirmation(false)}
+                  disabled={ending}
+                  className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-5 py-3 text-xs font-semibold text-zinc-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void confirmEndElection()}
+                  disabled={ending}
+                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-400/25 bg-red-500/15 px-5 py-3 text-xs font-semibold text-red-300 transition hover:border-red-400/40 hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {ending ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      Ending Election...
+                    </>
+                  ) : (
+                    <>
+                      <Flag size={15} />
+                      Yes, End Election
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
 
