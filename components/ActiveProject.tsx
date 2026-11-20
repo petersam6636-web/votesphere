@@ -142,33 +142,26 @@ export default function ActiveProject() {
 
         const selectedProject = data as Project;
 
-        // Validate the original saved duration and creation date.
-        const savedDuration = Number(selectedProject.duration_ms);
+        // duration_ms stores the election's absolute expiration timestamp.
+        const expirationTime = Number(selectedProject.duration_ms);
 
         const createdAt = new Date(
           selectedProject.created_at
         ).getTime();
 
         if (
-          !Number.isFinite(savedDuration) ||
+          !Number.isFinite(expirationTime) ||
           !Number.isFinite(createdAt) ||
-          savedDuration < 0
+          expirationTime < createdAt
         ) {
           throw new Error(
-            "The saved election duration or creation date is invalid."
+            "The saved election expiration time or creation date is invalid."
           );
         }
 
         if (!active) return;
 
-        // Calculate the actual remaining time.
-        // Remaining = Saved duration - Time already elapsed.
-        const elapsedTime = Date.now() - createdAt;
-
-        const remainingTime = Math.max(
-          0,
-          savedDuration - elapsedTime
-        );
+        const remainingTime = Math.max(0, expirationTime - Date.now());
 
         setRemainingMs(remainingTime);
         setActiveProject(selectedProject);
@@ -241,22 +234,10 @@ export default function ActiveProject() {
   useEffect(() => {
     if (!activeProject || endingRef.current) return;
 
-    const savedDuration = Number(activeProject.duration_ms);
-
-    const createdAt = new Date(
-      activeProject.created_at
-    ).getTime();
-
-    // The original expiry timestamp never changes.
-    const expiryTime = createdAt + savedDuration;
+    const expirationTime = Number(activeProject.duration_ms);
 
     const updateCountdown = () => {
-      // Recalculate from the original timestamps every second.
-      // This avoids losing time or restarting after a refresh.
-      const remaining = Math.max(
-        0,
-        expiryTime - Date.now()
-      );
+      const remaining = Math.max(0, expirationTime - Date.now());
 
       setRemainingMs(remaining);
 
@@ -365,24 +346,18 @@ export default function ActiveProject() {
     0
   );
 
-  const savedDuration = Math.max(
-    0,
-    Number(activeProject.duration_ms) || 0
-  );
-
-  const elapsedTime = Math.max(
-    0,
-    Date.now() -
-      new Date(activeProject.created_at).getTime()
-  );
+  const expirationTime = Number(activeProject.duration_ms);
+  const createdAt = new Date(activeProject.created_at).getTime();
+  const totalDuration = expirationTime - createdAt;
+  const elapsedTime = Date.now() - createdAt;
 
   const progress =
-    savedDuration > 0
+    totalDuration > 0
       ? Math.min(
           100,
           Math.max(
             0,
-            (elapsedTime / savedDuration) * 100
+            (elapsedTime / totalDuration) * 100
           )
         )
       : 100;
