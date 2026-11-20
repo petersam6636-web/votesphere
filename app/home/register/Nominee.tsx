@@ -655,74 +655,7 @@ export default function Nominee() {
         </section>
 
         {/* Registered nominee count */}
-        <div className="mt-6 rounded-2xl border border-emerald-400/15 bg-[#0b1913]/90 p-5 backdrop-blur-xl sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-white">
-                Registered nominees
-              </h3>
-
-              <p className="mt-1 text-xs text-white/40">
-                Your nominees are being collected for this election.
-              </p>
-            </div>
-
-            <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold tabular-nums text-emerald-300">
-              ({registeredNominees.length})
-            </span>
-          </div>
-
-          {registeredNominees.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-white/10 px-4 py-6 text-center">
-              <p className="text-xs text-white/40">
-                No nominees registered yet.
-              </p>
-
-              <p className="mt-1 text-[10px] text-white/25">
-                Complete the form above to register your first nominee.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 space-y-2">
-              {registeredNominees.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 rounded-xl border border-emerald-400/10 bg-black/20 p-3"
-                >
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.form.name}
-                      className="h-10 w-10 rounded-full border border-emerald-400/20 object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 text-sm font-semibold text-emerald-300">
-                      {item.form.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-white">
-                      {item.form.name}
-                    </p>
-
-                    <p className="text-[10px] text-white/35">
-                      Nominee {index + 1}
-                      {" · "}
-                      {item.form.achievements.length} achievement
-                      {item.form.achievements.length === 1 ? "" : "s"}
-                    </p>
-                  </div>
-
-                  <span className="shrink-0 rounded-full border border-emerald-400/15 bg-emerald-400/[0.06] px-2.5 py-1 text-[9px] font-semibold text-emerald-300">
-                    Added
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
+ 
         {/* Error */}
         {error && (
           <p

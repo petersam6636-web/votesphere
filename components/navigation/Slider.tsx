@@ -28,6 +28,8 @@ const navigation = [
   { label: "Settings", href: "/home/settings", icon: Settings },
 ];
 
+const homePaths = ["/home", "/home/starting", "/home/register"];
+
 export default function Slider({
   position,
   onPositionChange,
@@ -35,7 +37,12 @@ export default function Slider({
   const pathname = usePathname();
 
   const isActive = (href: string) => {
-    if (href === "/home") return pathname === "/home";
+    if (href === "/home") {
+      return homePaths.some(
+        (path) => pathname === path || pathname.startsWith(`${path}/`)
+      );
+    }
+
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
