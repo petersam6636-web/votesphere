@@ -68,7 +68,7 @@ export default function NomineesPage() {
 
   // Shared application state.
   // This assumes your useApp context exposes projects and setProjects.
-  const { taskKey, projects, setProjects } = useApp();
+  const { taskKey, project, setProject } = useApp();
 
   const [currentProject, setCurrentProject] =
     useState<ElectionProject | null>(null);
@@ -92,7 +92,7 @@ export default function NomineesPage() {
 
   // Select the earliest-created project.
   const selectedProject = useMemo(() => {
-    const allProjects = (projects ?? []) as ElectionProject[];
+    const allProjects = (project ?? []) as ElectionProject[];
 
     if (allProjects.length === 0) return null;
 
@@ -107,7 +107,7 @@ export default function NomineesPage() {
 
       return dateA - dateB;
     })[0];
-  }, [projects]);
+  }, [project]);
 
   // Fetch the latest project data and update the shared context.
   const refreshProject = useCallback(
@@ -140,7 +140,7 @@ export default function NomineesPage() {
       setCurrentProject(updatedProject);
 
       // Update shared state so every page using useApp receives the changes.
-      setProjects((previousProjects) => {
+      setProject((previousProjects) => {
         if (!previousProjects) {
           return [updatedProject as Project];
         }
@@ -154,7 +154,7 @@ export default function NomineesPage() {
 
       return updatedProject;
     },
-    [setProjects]
+    [setProject]
   );
 
   // Initial fetch and realtime vote updates.
@@ -381,7 +381,7 @@ export default function NomineesPage() {
   };
 
   // Wait for shared state to finish loading.
-  if (taskKey === null || projects === null) {
+  if (taskKey === null || project === null) {
     return (
       <div className="flex min-h-[65vh] items-center justify-center">
         <div className="flex items-center gap-3 text-sm text-white/45">
@@ -393,7 +393,7 @@ export default function NomineesPage() {
   }
 
   // No active election.
-  if (!(taskKey === true && projects.length > 0)) {
+  if (!(taskKey === true && project.length > 0)) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
         <section className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/[0.09] bg-[#0b1510] p-7 text-center shadow-[0_25px_80px_rgba(0,0,0,0.35)] sm:p-9">
