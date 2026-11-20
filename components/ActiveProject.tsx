@@ -18,45 +18,37 @@ import {
   Timer,
   Zap,
   Hourglass,
+  Sparkles,
+  Radio,
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase-client";
 import useApp from "@/lib/useApp";
 
+import ProjectLoading from "@/components/ProjectLoading";
+
 import type { Project } from "@/types/project";
 
 type TimeLeft = {
-  years: number;
   days: number;
   hours: number;
   minutes: number;
   seconds: number;
 };
 
-const YEAR = 365 * 24 * 60 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const MINUTE = 60 * 1000;
 
 function calculateTimeLeft(milliseconds: number): TimeLeft {
-  let remaining = Math.max(0, milliseconds);
-
-  const years = Math.floor(remaining / YEAR);
-  remaining %= YEAR;
+  const remaining = Math.max(0, milliseconds);
 
   const days = Math.floor(remaining / DAY);
-  remaining %= DAY;
-
-  const hours = Math.floor(remaining / HOUR);
-  remaining %= HOUR;
-
-  const minutes = Math.floor(remaining / MINUTE);
-  remaining %= MINUTE;
-
-  const seconds = Math.floor(remaining / 1000);
+  const hours = Math.floor((remaining % DAY) / HOUR);
+  const minutes = Math.floor((remaining % HOUR) / MINUTE);
+  const seconds = Math.floor((remaining % MINUTE) / 1000);
 
   return {
-    years,
     days,
     hours,
     minutes,
@@ -83,11 +75,7 @@ function formatDate(date: string) {
 }
 
 export default function ActiveProject() {
-  const {
-    userInfo,
-    setProject,
-    setTaskKey,
-  } = useApp();
+  const { userInfo, setProject, setTaskKey } = useApp();
 
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
@@ -142,7 +130,7 @@ export default function ActiveProject() {
 
         const selectedProject = data as Project;
 
-        // duration_ms stores the election's absolute expiration timestamp.
+        // duration_ms stores the absolute expiration timestamp.
         const expirationTime = Number(selectedProject.duration_ms);
 
         const createdAt = new Date(
@@ -161,7 +149,10 @@ export default function ActiveProject() {
 
         if (!active) return;
 
-        const remainingTime = Math.max(0, expirationTime - Date.now());
+        const remainingTime = Math.max(
+          0,
+          expirationTime - Date.now()
+        );
 
         setRemainingMs(remainingTime);
         setActiveProject(selectedProject);
@@ -237,7 +228,10 @@ export default function ActiveProject() {
     const expirationTime = Number(activeProject.duration_ms);
 
     const updateCountdown = () => {
-      const remaining = Math.max(0, expirationTime - Date.now());
+      const remaining = Math.max(
+        0,
+        expirationTime - Date.now()
+      );
 
       setRemainingMs(remaining);
 
@@ -263,35 +257,7 @@ export default function ActiveProject() {
   // --------------------------------------------------
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] w-full items-center justify-center px-4">
-        <div className="flex w-full max-w-sm flex-col items-center rounded-3xl border border-emerald-400/10 bg-[#0d1510] px-8 py-12 text-center">
-          <div className="relative flex h-16 w-16 items-center justify-center">
-            <div className="absolute inset-0 animate-ping rounded-2xl border border-emerald-400/20 opacity-40" />
-
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.08]">
-              <Loader2
-                className="animate-spin text-emerald-400"
-                size={26}
-              />
-            </div>
-          </div>
-
-          <h2 className="mt-6 text-base font-semibold text-white">
-            Preparing your election dashboard
-          </h2>
-
-          <p className="mt-2 text-xs leading-6 text-zinc-500">
-            Fetching your election details and preparing your live
-            voting activity.
-          </p>
-
-          <div className="mt-6 h-1 w-40 overflow-hidden rounded-full bg-white/[0.06]">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-400" />
-          </div>
-        </div>
-      </div>
-    );
+    return <ProjectLoading />;
   }
 
   // --------------------------------------------------
@@ -348,6 +314,7 @@ export default function ActiveProject() {
 
   const expirationTime = Number(activeProject.duration_ms);
   const createdAt = new Date(activeProject.created_at).getTime();
+
   const totalDuration = expirationTime - createdAt;
   const elapsedTime = Date.now() - createdAt;
 
@@ -363,9 +330,6 @@ export default function ActiveProject() {
       : 100;
 
   const timeUnits = [
-    ...(time.years > 0
-      ? [{ label: "Years", value: time.years }]
-      : []),
     { label: "Days", value: time.days },
     { label: "Hours", value: time.hours },
     { label: "Minutes", value: time.minutes },
@@ -377,11 +341,11 @@ export default function ActiveProject() {
   // --------------------------------------------------
 
   return (
-    <div className="w-full space-y-6 pb-8">
+    <div className="mx-auto w-full max-w-7xl space-y-6 pb-6">
 
       {/* ELECTION HEADER */}
 
-      <section className="relative overflow-hidden rounded-3xl border border-emerald-400/15 bg-gradient-to-br from-[#103323] via-[#0c1c14] to-[#0b110e] p-6 sm:p-8">
+      <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-emerald-400/15 bg-gradient-to-br from-[#103323] via-[#0c1c14] to-[#0b110e] p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-emerald-400/[0.09] blur-[90px]" />
 
         <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-teal-400/[0.05] blur-[80px]" />
@@ -429,143 +393,144 @@ export default function ActiveProject() {
         </div>
       </section>
 
-      {/* COUNTDOWN CARD */}
+      {/* COUNTDOWN AND FLOATING BUBBLE */}
 
       <section
-        className={`relative overflow-hidden rounded-3xl border p-5 transition-colors duration-500 sm:p-8 ${
+        className={`relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl border transition-colors duration-500 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,0.7fr)] ${
           isUrgent
-            ? "border-red-500/30 bg-gradient-to-br from-[#351414] via-[#1c1111] to-[#100d0d]"
+            ? "border-red-500/25 bg-gradient-to-br from-[#251313] via-[#171010] to-[#100d0d]"
             : "border-emerald-400/15 bg-gradient-to-br from-[#10251b] via-[#101914] to-[#0c110e]"
         }`}
       >
+        {/* Ambient glow */}
+
         <div
-          className={`pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full blur-[90px] ${
+          className={`pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-[100px] ${
             isUrgent
-              ? "bg-red-500/15"
+              ? "bg-red-500/10"
               : "bg-emerald-400/[0.08]"
           }`}
         />
 
-        <div className="relative">
+        {/* LEFT: COUNTDOWN */}
 
-          {/* Countdown heading */}
-
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="relative min-w-0 p-5 sm:p-7 lg:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div
-                className={`flex items-center gap-2 text-xs font-bold tracking-[0.18em] ${
+                className={`flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] ${
                   isUrgent
                     ? "text-red-400"
                     : "text-emerald-400"
                 }`}
               >
-                <Timer size={17} />
+                <Timer size={15} />
                 ELECTION COUNTDOWN
               </div>
 
-              <h2 className="mt-2 text-lg font-semibold text-white sm:text-xl">
+              <h2 className="mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl">
                 Time remaining
               </h2>
 
               <p className="mt-1 text-xs text-zinc-500">
-                Your election ends automatically when the timer reaches zero.
+                Time left until voting closes.
               </p>
             </div>
 
             <div
-              className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[10px] font-bold tracking-wider ${
+              className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[9px] font-bold tracking-wider ${
                 isUrgent
                   ? "border-red-500/25 bg-red-500/10 text-red-400"
-                  : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                  : "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-300"
               }`}
             >
               {isUrgent ? (
                 <>
-                  <Zap size={13} />
+                  <Zap size={12} />
                   ENDING SOON
                 </>
               ) : (
                 <>
-                  <Hourglass size={13} />
+                  <Hourglass size={12} />
                   COUNTING DOWN
                 </>
               )}
             </div>
           </div>
 
-          {/* Digital timer display */}
+          {/* Modern countdown units */}
 
-          <div className="mt-8 rounded-2xl border border-white/[0.07] bg-black/25 p-4 sm:p-6">
-            <div
-              className={`grid gap-2 sm:gap-4 ${
-                time.years > 0
-                  ? "grid-cols-2 sm:grid-cols-5"
-                  : "grid-cols-2 sm:grid-cols-4"
-              }`}
-            >
-              {timeUnits.map((unit) => (
+          <div className="mt-7 grid grid-cols-4 gap-2 sm:gap-3">
+            {timeUnits.map((unit, index) => (
+              <div
+                key={unit.label}
+                className="group min-w-0 text-center"
+              >
                 <div
-                  key={unit.label}
-                  className="min-w-0 text-center"
+                  className={`relative flex aspect-[1/1.05] min-h-[65px] items-center justify-center overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${
+                    isUrgent
+                      ? "border-red-500/20 bg-[#251010]"
+                      : "border-white/[0.08] bg-[#080e0b]/80 group-hover:border-emerald-400/25 group-hover:bg-emerald-400/[0.04]"
+                  }`}
                 >
                   <div
-                    className={`relative flex min-h-[76px] items-center justify-center overflow-hidden rounded-xl border shadow-inner sm:min-h-[104px] sm:rounded-2xl ${
+                    className={`pointer-events-none absolute inset-x-0 top-0 h-px ${
                       isUrgent
-                        ? "border-red-500/20 bg-[#230e0e]"
-                        : "border-emerald-400/10 bg-[#080e0b]"
+                        ? "bg-red-400/30"
+                        : "bg-emerald-300/20"
                     }`}
-                  >
-                    <div
-                      className={`absolute inset-x-0 top-1/2 h-px ${
-                        isUrgent
-                          ? "bg-red-400/10"
-                          : "bg-emerald-400/[0.07]"
-                      }`}
-                    />
+                  />
 
-                    <span
-                      className={`relative font-mono text-3xl font-bold tracking-tight tabular-nums sm:text-5xl ${
-                        isUrgent
-                          ? "text-red-400"
+                  <span
+                    className={`relative font-mono text-2xl font-bold tracking-tighter tabular-nums sm:text-3xl md:text-4xl ${
+                      isUrgent
+                        ? "text-red-400"
+                        : index === 3
+                          ? "text-emerald-300"
                           : "text-white"
-                      }`}
-                    >
-                      {unit.label === "Years"
-                        ? unit.value
-                        : pad(unit.value)}
-                    </span>
-                  </div>
-
-                  <p
-                    className={`mt-3 text-[9px] font-bold uppercase tracking-[0.15em] sm:text-[10px] ${
-                      isUrgent
-                        ? "text-red-300/60"
-                        : "text-zinc-500"
                     }`}
                   >
-                    {unit.label}
-                  </p>
+                    {pad(unit.value)}
+                  </span>
+
+                  <div
+                    className={`pointer-events-none absolute bottom-0 left-1/2 h-1 w-1/3 -translate-x-1/2 rounded-full blur-md ${
+                      isUrgent
+                        ? "bg-red-400/30"
+                        : "bg-emerald-400/20"
+                    }`}
+                  />
                 </div>
-              ))}
-            </div>
 
-            {isUrgent && !isExpired && (
-              <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs font-semibold text-red-400">
-                <Zap size={14} />
-                Less than 10 seconds remaining
-              </p>
-            )}
-
-            {isExpired && (
-              <p className="mt-5 text-center text-xs font-semibold text-red-400">
-                Election time has expired. Finishing your election...
-              </p>
-            )}
+                <p
+                  className={`mt-2 text-[9px] font-bold uppercase tracking-[0.12em] sm:text-[10px] ${
+                    isUrgent
+                      ? "text-red-300/60"
+                      : "text-zinc-500"
+                  }`}
+                >
+                  {unit.label}
+                </p>
+              </div>
+            ))}
           </div>
 
-          {/* Progress bar */}
+          {isUrgent && !isExpired && (
+            <p className="mt-5 flex items-center justify-center gap-2 text-center text-[11px] font-semibold text-red-400">
+              <Zap size={13} />
+              Less than 10 seconds remaining
+            </p>
+          )}
 
-          <div className="mt-6">
+          {isExpired && (
+            <p className="mt-5 text-center text-[11px] font-semibold text-red-400">
+              Election time has expired. Finishing your election...
+            </p>
+          )}
+
+          {/* Progress */}
+
+          <div className="mt-7">
             <div className="mb-2 flex items-center justify-between gap-3 text-[10px]">
               <span className="font-medium text-zinc-500">
                 Election time elapsed
@@ -583,7 +548,7 @@ export default function ActiveProject() {
             </div>
 
             <div
-              className={`h-2 overflow-hidden rounded-full ${
+              className={`h-1.5 overflow-hidden rounded-full ${
                 isUrgent
                   ? "bg-red-500/10"
                   : "bg-emerald-400/10"
@@ -602,11 +567,139 @@ export default function ActiveProject() {
             </div>
           </div>
         </div>
+
+        {/* RIGHT: FLOATING ELECTION BUBBLE */}
+
+        <div className="relative flex min-h-[220px] items-center justify-center overflow-hidden border-t border-white/[0.06] px-6 py-8 lg:min-h-0 lg:border-l lg:border-t-0">
+          {/* Background glow */}
+
+          <div
+            className={`pointer-events-none absolute h-52 w-52 rounded-full blur-[70px] ${
+              isUrgent
+                ? "bg-red-500/[0.10]"
+                : "bg-emerald-400/[0.10]"
+            }`}
+          />
+
+          {/* Decorative floating orbs */}
+
+          <div
+            className={`absolute right-[15%] top-[12%] h-3 w-3 animate-[bounce_4s_ease-in-out_infinite] rounded-full border ${
+              isUrgent
+                ? "border-red-300/40 bg-red-400/20"
+                : "border-emerald-300/40 bg-emerald-400/20"
+            }`}
+          />
+
+          <div
+            className={`absolute bottom-[17%] left-[13%] h-5 w-5 animate-[bounce_5s_ease-in-out_infinite] rounded-full border ${
+              isUrgent
+                ? "border-red-300/30 bg-red-400/10"
+                : "border-emerald-300/30 bg-emerald-400/10"
+            }`}
+          />
+
+          <div className="relative flex flex-col items-center text-center">
+            {/* Main floating bubble */}
+
+            <div className="relative flex h-36 w-36 animate-[bounce_5s_ease-in-out_infinite] items-center justify-center sm:h-40 sm:w-40">
+              <div
+                className={`absolute inset-0 rounded-full border ${
+                  isUrgent
+                    ? "border-red-400/20"
+                    : "border-emerald-400/20"
+                }`}
+              />
+
+              <div
+                className={`absolute inset-3 rounded-full border ${
+                  isUrgent
+                    ? "border-red-400/10"
+                    : "border-emerald-400/10"
+                }`}
+              />
+
+              <div
+                className={`absolute inset-5 rounded-full blur-md ${
+                  isUrgent
+                    ? "bg-red-400/[0.08]"
+                    : "bg-emerald-400/[0.08]"
+                }`}
+              />
+
+              <div
+                className={`relative flex h-24 w-24 items-center justify-center rounded-full border shadow-[inset_0_0_30px_rgba(255,255,255,0.025),0_0_45px_rgba(16,185,129,0.08)] sm:h-28 sm:w-28 ${
+                  isUrgent
+                    ? "border-red-400/25 bg-[#291414]"
+                    : "border-emerald-400/25 bg-[#10251b]"
+                }`}
+              >
+                {isUrgent ? (
+                  <Zap
+                    size={35}
+                    className="text-red-400"
+                    strokeWidth={1.5}
+                  />
+                ) : (
+                  <ShieldCheck
+                    size={37}
+                    className="text-emerald-400"
+                    strokeWidth={1.4}
+                  />
+                )}
+              </div>
+
+              {/* Small floating sparkles */}
+
+              <div
+                className={`absolute right-3 top-5 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md ${
+                  isUrgent
+                    ? "border-red-400/20 bg-red-400/10 text-red-300"
+                    : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                }`}
+              >
+                <Sparkles size={14} />
+              </div>
+
+              <div
+                className={`absolute bottom-5 left-1 flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md ${
+                  isUrgent
+                    ? "border-red-400/20 bg-red-400/10 text-red-300"
+                    : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                }`}
+              >
+                <Radio size={12} />
+              </div>
+            </div>
+
+            <div className="relative mt-5">
+              <p
+                className={`text-[10px] font-bold tracking-[0.22em] ${
+                  isUrgent
+                    ? "text-red-400"
+                    : "text-emerald-400"
+                }`}
+              >
+                {isUrgent ? "FINAL MOMENTS" : "VOTING IN PROGRESS"}
+              </p>
+
+              <h3 className="mt-2 text-lg font-bold tracking-tight text-white">
+                {isUrgent ? "Almost there" : "Your election is live"}
+              </h3>
+
+              <p className="mx-auto mt-1 max-w-[220px] text-[11px] leading-5 text-zinc-500">
+                {isUrgent
+                  ? "The election is approaching its scheduled closing time."
+                  : "Your voting space is active. Every vote counts."}
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* STATISTICS */}
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <section className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           {
             label: "Total Nominees",
@@ -649,7 +742,7 @@ export default function ActiveProject() {
 
       {/* NOMINEES */}
 
-      <section className="space-y-4">
+      <section className="mx-auto w-full max-w-6xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-white">
@@ -816,7 +909,7 @@ export default function ActiveProject() {
       {error && activeProject && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] p-4 text-xs text-red-300"
+          className="mx-auto flex w-full max-w-6xl items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] p-4 text-xs text-red-300"
         >
           <AlertCircle size={16} className="shrink-0" />
           {error}
@@ -825,7 +918,7 @@ export default function ActiveProject() {
 
       {/* FORCE END */}
 
-      <section className="relative overflow-hidden rounded-2xl border border-red-500/15 bg-gradient-to-br from-[#1c1212] to-[#100e0e] p-5 sm:p-6">
+      <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-red-500/15 bg-gradient-to-br from-[#1c1212] to-[#100e0e] p-5 sm:p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/15 bg-red-500/10 text-red-400">
