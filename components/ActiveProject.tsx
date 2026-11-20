@@ -43,16 +43,11 @@ const MINUTE = 60 * 1000;
 function calculateTimeLeft(milliseconds: number): TimeLeft {
   const remaining = Math.max(0, milliseconds);
 
-  const days = Math.floor(remaining / DAY);
-  const hours = Math.floor((remaining % DAY) / HOUR);
-  const minutes = Math.floor((remaining % HOUR) / MINUTE);
-  const seconds = Math.floor((remaining % MINUTE) / 1000);
-
   return {
-    days,
-    hours,
-    minutes,
-    seconds,
+    days: Math.floor(remaining / DAY),
+    hours: Math.floor((remaining % DAY) / HOUR),
+    minutes: Math.floor((remaining % HOUR) / MINUTE),
+    seconds: Math.floor((remaining % MINUTE) / 1000),
   };
 }
 
@@ -322,10 +317,7 @@ export default function ActiveProject() {
     totalDuration > 0
       ? Math.min(
           100,
-          Math.max(
-            0,
-            (elapsedTime / totalDuration) * 100
-          )
+          Math.max(0, (elapsedTime / totalDuration) * 100)
         )
       : 100;
 
@@ -393,29 +385,148 @@ export default function ActiveProject() {
         </div>
       </section>
 
-      {/* COUNTDOWN AND FLOATING BUBBLE */}
+      {/* FULL-WIDTH COUNTDOWN WITH FLOATING BACKGROUND BUBBLE */}
 
       <section
-        className={`relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl border transition-colors duration-500 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,0.7fr)] ${
+        className={`relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border transition-colors duration-500 ${
           isUrgent
             ? "border-red-500/25 bg-gradient-to-br from-[#251313] via-[#171010] to-[#100d0d]"
             : "border-emerald-400/15 bg-gradient-to-br from-[#10251b] via-[#101914] to-[#0c110e]"
         }`}
       >
-        {/* Ambient glow */}
+        {/* Ambient background glows */}
 
         <div
           className={`pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-[100px] ${
             isUrgent
               ? "bg-red-500/10"
-              : "bg-emerald-400/[0.08]"
+              : "bg-emerald-400/[0.10]"
           }`}
         />
 
-        {/* LEFT: COUNTDOWN */}
+        <div
+          className={`pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full blur-[100px] ${
+            isUrgent
+              ? "bg-red-500/[0.07]"
+              : "bg-teal-400/[0.07]"
+          }`}
+        />
 
-        <div className="relative min-w-0 p-5 sm:p-7 lg:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Large floating bubble behind the countdown */}
+
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div className="relative flex h-[340px] w-[340px] shrink-0 animate-[bounce_6s_ease-in-out_infinite] items-center justify-center opacity-70 sm:h-[420px] sm:w-[420px]">
+            {/* Outer ring */}
+
+            <div
+              className={`absolute inset-0 rounded-full border ${
+                isUrgent
+                  ? "border-red-400/[0.12]"
+                  : "border-emerald-400/[0.12]"
+              }`}
+            />
+
+            {/* Middle ring */}
+
+            <div
+              className={`absolute inset-8 rounded-full border ${
+                isUrgent
+                  ? "border-red-400/[0.12]"
+                  : "border-emerald-400/[0.12]"
+              }`}
+            />
+
+            {/* Inner ring */}
+
+            <div
+              className={`absolute inset-16 rounded-full border ${
+                isUrgent
+                  ? "border-red-400/[0.10]"
+                  : "border-emerald-400/[0.10]"
+              }`}
+            />
+
+            {/* Main glowing surface */}
+
+            <div
+              className={`absolute inset-20 rounded-full blur-2xl ${
+                isUrgent
+                  ? "bg-red-400/[0.10]"
+                  : "bg-emerald-400/[0.10]"
+              }`}
+            />
+
+            {/* Center icon bubble */}
+
+            <div
+              className={`relative flex h-28 w-28 items-center justify-center rounded-full border backdrop-blur-xl sm:h-36 sm:w-36 ${
+                isUrgent
+                  ? "border-red-400/20 bg-red-400/[0.06] shadow-[0_0_80px_rgba(239,68,68,0.08)]"
+                  : "border-emerald-400/20 bg-emerald-400/[0.06] shadow-[0_0_80px_rgba(16,185,129,0.10)]"
+              }`}
+            >
+              {isUrgent ? (
+                <Zap
+                  size={48}
+                  strokeWidth={1.2}
+                  className="text-red-400/50"
+                />
+              ) : (
+                <ShieldCheck
+                  size={52}
+                  strokeWidth={1.2}
+                  className="text-emerald-400/50"
+                />
+              )}
+            </div>
+
+            {/* Floating decorative orbs */}
+
+            <div
+              className={`absolute right-[16%] top-[16%] h-4 w-4 animate-[bounce_4s_ease-in-out_infinite] rounded-full border ${
+                isUrgent
+                  ? "border-red-300/40 bg-red-400/20"
+                  : "border-emerald-300/40 bg-emerald-400/20"
+              }`}
+            />
+
+            <div
+              className={`absolute bottom-[15%] left-[16%] h-6 w-6 animate-[bounce_5s_ease-in-out_infinite] rounded-full border ${
+                isUrgent
+                  ? "border-red-300/30 bg-red-400/10"
+                  : "border-emerald-300/30 bg-emerald-400/10"
+              }`}
+            />
+
+            <div
+              className={`absolute left-[20%] top-[22%] flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md ${
+                isUrgent
+                  ? "border-red-400/20 bg-red-400/10 text-red-300/50"
+                  : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300/50"
+              }`}
+            >
+              <Sparkles size={15} />
+            </div>
+
+            <div
+              className={`absolute bottom-[22%] right-[18%] flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md ${
+                isUrgent
+                  ? "border-red-400/20 bg-red-400/10 text-red-300/50"
+                  : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300/50"
+              }`}
+            >
+              <Radio size={13} />
+            </div>
+          </div>
+        </div>
+
+        {/* Countdown content */}
+
+        <div className="relative z-10 mx-auto w-full max-w-3xl px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+
+          {/* Heading */}
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div
                 className={`flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] ${
@@ -432,7 +543,7 @@ export default function ActiveProject() {
                 Time remaining
               </h2>
 
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-zinc-400">
                 Time left until voting closes.
               </p>
             </div>
@@ -458,19 +569,19 @@ export default function ActiveProject() {
             </div>
           </div>
 
-          {/* Modern countdown units */}
+          {/* Countdown units */}
 
-          <div className="mt-7 grid grid-cols-4 gap-2 sm:gap-3">
+          <div className="mt-8 grid grid-cols-4 gap-2 sm:gap-4">
             {timeUnits.map((unit, index) => (
               <div
                 key={unit.label}
                 className="group min-w-0 text-center"
               >
                 <div
-                  className={`relative flex aspect-[1/1.05] min-h-[65px] items-center justify-center overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${
+                  className={`relative flex aspect-square min-h-[65px] items-center justify-center overflow-hidden rounded-xl border backdrop-blur-xl transition-all duration-300 sm:rounded-2xl ${
                     isUrgent
-                      ? "border-red-500/20 bg-[#251010]"
-                      : "border-white/[0.08] bg-[#080e0b]/80 group-hover:border-emerald-400/25 group-hover:bg-emerald-400/[0.04]"
+                      ? "border-red-500/20 bg-[#251010]/85"
+                      : "border-white/[0.10] bg-[#080e0b]/75 group-hover:border-emerald-400/25 group-hover:bg-emerald-400/[0.06]"
                   }`}
                 >
                   <div
@@ -482,7 +593,7 @@ export default function ActiveProject() {
                   />
 
                   <span
-                    className={`relative font-mono text-2xl font-bold tracking-tighter tabular-nums sm:text-3xl md:text-4xl ${
+                    className={`relative font-mono text-xl font-bold tracking-tighter tabular-nums sm:text-3xl md:text-4xl ${
                       isUrgent
                         ? "text-red-400"
                         : index === 3
@@ -505,8 +616,8 @@ export default function ActiveProject() {
                 <p
                   className={`mt-2 text-[9px] font-bold uppercase tracking-[0.12em] sm:text-[10px] ${
                     isUrgent
-                      ? "text-red-300/60"
-                      : "text-zinc-500"
+                      ? "text-red-300/70"
+                      : "text-zinc-400"
                   }`}
                 >
                   {unit.label}
@@ -514,6 +625,8 @@ export default function ActiveProject() {
               </div>
             ))}
           </div>
+
+          {/* Urgent and expired messages */}
 
           {isUrgent && !isExpired && (
             <p className="mt-5 flex items-center justify-center gap-2 text-center text-[11px] font-semibold text-red-400">
@@ -530,9 +643,9 @@ export default function ActiveProject() {
 
           {/* Progress */}
 
-          <div className="mt-7">
+          <div className="mt-8">
             <div className="mb-2 flex items-center justify-between gap-3 text-[10px]">
-              <span className="font-medium text-zinc-500">
+              <span className="font-medium text-zinc-400">
                 Election time elapsed
               </span>
 
@@ -550,8 +663,8 @@ export default function ActiveProject() {
             <div
               className={`h-1.5 overflow-hidden rounded-full ${
                 isUrgent
-                  ? "bg-red-500/10"
-                  : "bg-emerald-400/10"
+                  ? "bg-red-500/15"
+                  : "bg-emerald-400/15"
               }`}
             >
               <div
@@ -566,134 +679,40 @@ export default function ActiveProject() {
               />
             </div>
           </div>
-        </div>
 
-        {/* RIGHT: FLOATING ELECTION BUBBLE */}
+          {/* Status */}
 
-        <div className="relative flex min-h-[220px] items-center justify-center overflow-hidden border-t border-white/[0.06] px-6 py-8 lg:min-h-0 lg:border-l lg:border-t-0">
-          {/* Background glow */}
+          <div className="mt-7 flex items-center justify-center gap-2 text-center">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isUrgent
+                  ? "animate-pulse bg-red-400"
+                  : "animate-pulse bg-emerald-400"
+              }`}
+            />
 
-          <div
-            className={`pointer-events-none absolute h-52 w-52 rounded-full blur-[70px] ${
-              isUrgent
-                ? "bg-red-500/[0.10]"
-                : "bg-emerald-400/[0.10]"
-            }`}
-          />
-
-          {/* Decorative floating orbs */}
-
-          <div
-            className={`absolute right-[15%] top-[12%] h-3 w-3 animate-[bounce_4s_ease-in-out_infinite] rounded-full border ${
-              isUrgent
-                ? "border-red-300/40 bg-red-400/20"
-                : "border-emerald-300/40 bg-emerald-400/20"
-            }`}
-          />
-
-          <div
-            className={`absolute bottom-[17%] left-[13%] h-5 w-5 animate-[bounce_5s_ease-in-out_infinite] rounded-full border ${
-              isUrgent
-                ? "border-red-300/30 bg-red-400/10"
-                : "border-emerald-300/30 bg-emerald-400/10"
-            }`}
-          />
-
-          <div className="relative flex flex-col items-center text-center">
-            {/* Main floating bubble */}
-
-            <div className="relative flex h-36 w-36 animate-[bounce_5s_ease-in-out_infinite] items-center justify-center sm:h-40 sm:w-40">
-              <div
-                className={`absolute inset-0 rounded-full border ${
-                  isUrgent
-                    ? "border-red-400/20"
-                    : "border-emerald-400/20"
-                }`}
-              />
-
-              <div
-                className={`absolute inset-3 rounded-full border ${
-                  isUrgent
-                    ? "border-red-400/10"
-                    : "border-emerald-400/10"
-                }`}
-              />
-
-              <div
-                className={`absolute inset-5 rounded-full blur-md ${
-                  isUrgent
-                    ? "bg-red-400/[0.08]"
-                    : "bg-emerald-400/[0.08]"
-                }`}
-              />
-
-              <div
-                className={`relative flex h-24 w-24 items-center justify-center rounded-full border shadow-[inset_0_0_30px_rgba(255,255,255,0.025),0_0_45px_rgba(16,185,129,0.08)] sm:h-28 sm:w-28 ${
-                  isUrgent
-                    ? "border-red-400/25 bg-[#291414]"
-                    : "border-emerald-400/25 bg-[#10251b]"
-                }`}
-              >
-                {isUrgent ? (
-                  <Zap
-                    size={35}
-                    className="text-red-400"
-                    strokeWidth={1.5}
-                  />
-                ) : (
-                  <ShieldCheck
-                    size={37}
-                    className="text-emerald-400"
-                    strokeWidth={1.4}
-                  />
-                )}
-              </div>
-
-              {/* Small floating sparkles */}
-
-              <div
-                className={`absolute right-3 top-5 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md ${
-                  isUrgent
-                    ? "border-red-400/20 bg-red-400/10 text-red-300"
-                    : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                }`}
-              >
-                <Sparkles size={14} />
-              </div>
-
-              <div
-                className={`absolute bottom-5 left-1 flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md ${
-                  isUrgent
-                    ? "border-red-400/20 bg-red-400/10 text-red-300"
-                    : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                }`}
-              >
-                <Radio size={12} />
-              </div>
-            </div>
-
-            <div className="relative mt-5">
-              <p
-                className={`text-[10px] font-bold tracking-[0.22em] ${
-                  isUrgent
-                    ? "text-red-400"
-                    : "text-emerald-400"
-                }`}
-              >
-                {isUrgent ? "FINAL MOMENTS" : "VOTING IN PROGRESS"}
-              </p>
-
-              <h3 className="mt-2 text-lg font-bold tracking-tight text-white">
-                {isUrgent ? "Almost there" : "Your election is live"}
-              </h3>
-
-              <p className="mx-auto mt-1 max-w-[220px] text-[11px] leading-5 text-zinc-500">
-                {isUrgent
-                  ? "The election is approaching its scheduled closing time."
-                  : "Your voting space is active. Every vote counts."}
-              </p>
-            </div>
+            <p
+              className={`text-[10px] font-bold tracking-[0.18em] ${
+                isUrgent
+                  ? "text-red-400"
+                  : "text-emerald-400"
+              }`}
+            >
+              {isUrgent
+                ? "FINAL MOMENTS"
+                : "VOTING IN PROGRESS"}
+            </p>
           </div>
+
+          <h3 className="mt-2 text-center text-lg font-bold tracking-tight text-white">
+            {isUrgent ? "Almost there" : "Your election is live"}
+          </h3>
+
+          <p className="mx-auto mt-1 max-w-xs text-center text-[11px] leading-5 text-zinc-400">
+            {isUrgent
+              ? "The election is approaching its scheduled closing time."
+              : "Your voting space is active. Every vote counts."}
+          </p>
         </div>
       </section>
 
