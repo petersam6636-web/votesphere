@@ -55,6 +55,8 @@ export default function Nominee() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showNomineeConfirmation, setShowNomineeConfirmation] =
+    useState(false);
   const [error, setError] = useState("");
 
   // Verify user and recover current project if necessary.
@@ -171,7 +173,7 @@ export default function Nominee() {
     }));
   };
 
-  // Validate and register the current nominee locally.
+  // Validate the current nominee before asking for confirmation.
   const registerNominee = () => {
     setError("");
 
@@ -196,6 +198,10 @@ export default function Nominee() {
       return;
     }
 
+    setShowNomineeConfirmation(true);
+  };
+
+  const confirmRegisterNominee = () => {
     setRegisteredNominees((previous) => [
       ...previous,
       {
@@ -212,6 +218,7 @@ export default function Nominee() {
     // Reset the form for the next nominee.
     setDraftNominee(createEmptyNominee());
     setDraftImageUrl(null);
+    setShowNomineeConfirmation(false);
   };
 
   // Check whether the current form contains unsaved information.
@@ -789,6 +796,56 @@ export default function Nominee() {
                 ) : (
                   "Yes, continue"
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nominee registration confirmation */}
+      {showNomineeConfirmation && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="register-nominee-title"
+            className="w-full max-w-md rounded-3xl border border-emerald-400/20 bg-[#0b1913] p-6 shadow-[0_0_60px_rgba(0,0,0,0.5)] sm:p-7"
+          >
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-xl text-emerald-300">
+              +
+            </div>
+
+            <h2
+              id="register-nominee-title"
+              className="text-xl font-bold text-white"
+            >
+              Register this nominee?
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-white/50">
+              Add{" "}
+              <span className="font-semibold text-emerald-300">
+                {draftNominee.name.trim()}
+              </span>{" "}
+              to the nominee list? The form will be cleared so you can add
+              another nominee.
+            </p>
+
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowNomineeConfirmation(false)}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/[0.08]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmRegisterNominee}
+                className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-[#04100a] transition hover:bg-emerald-400"
+              >
+                Yes, register
               </button>
             </div>
           </div>

@@ -271,7 +271,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
           </p>
 
           <Link
-            href="/home"
+            href="/home/nominees"
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-[#04120b] transition hover:bg-emerald-400"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -314,7 +314,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050d0a] px-4 py-10 text-white sm:px-6">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden  px-2 py-5 text-white">
       {/* Ambient background */}
       <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-[130px]" />
       <div className="pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full bg-green-500/[0.07] blur-[140px]" />
@@ -450,96 +450,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
               </div>
             </section>
 
-            {/* Nominee comparison */}
-            <section>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-300">
-                    Nominee comparison
-                  </h2>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Vote totals across this project
-                  </p>
-                </div>
-
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-gray-400">
-                  {rankedNominees.length} nominees
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {rankedNominees.map((item, index) => {
-                  const itemVotes = item.voters?.length ?? 0;
-                  const itemProgress =
-                    leadingVotes > 0
-                      ? (itemVotes / leadingVotes) * 100
-                      : 0;
-                  const isCurrentNominee = item.id === nominee.id;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className={`rounded-xl border p-4 ${
-                        isCurrentNominee
-                          ? "border-emerald-400/30 bg-emerald-400/[0.07]"
-                          : "border-white/[0.07] bg-white/[0.02]"
-                      }`}
-                    >
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-xs font-bold text-gray-400">
-                            #{index + 1}
-                          </span>
-
-                          <div className="min-w-0">
-                            <p
-                              className={`truncate text-sm font-medium ${
-                                isCurrentNominee
-                                  ? "text-emerald-300"
-                                  : "text-gray-200"
-                              }`}
-                            >
-                              {item.name || "Unnamed nominee"}
-                            </p>
-
-                            {isCurrentNominee && (
-                              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500">
-                                This nominee
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <span className="shrink-0 text-sm font-semibold tabular-nums text-white">
-                          {itemVotes}{" "}
-                          <span className="text-xs font-normal text-gray-500">
-                            votes
-                          </span>
-                        </span>
-                      </div>
-
-                      <div className="h-1.5 overflow-hidden rounded-full bg-black/40">
-                        <div
-                          className={`h-full rounded-full transition-all duration-700 ${
-                            isCurrentNominee
-                              ? "bg-emerald-400"
-                              : "bg-gray-600"
-                          }`}
-                          style={{ width: `${itemProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {rankedNominees.length === 0 && (
-                  <p className="rounded-xl border border-white/[0.07] p-5 text-center text-sm text-gray-500">
-                    No nominees are available for comparison yet.
-                  </p>
-                )}
-              </div>
-            </section>
-
+ 
             {/* Manifesto */}
             {nominee.manifesto?.trim() && (
               <section>

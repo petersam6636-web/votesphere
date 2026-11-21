@@ -49,7 +49,7 @@ const MINUTE = 60 * 1000;
 // COUNTDOWN BACKGROUND BUBBLES
 // --------------------------------------------------
 
-const backgroundBubbles = Array.from({ length: 35 }, (_, index) => {
+const backgroundBubbles = Array.from({ length: 20 }, (_, index) => {
   const seed = index + 1;
 
   const random = (value: number) => {
