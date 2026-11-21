@@ -271,7 +271,7 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
           </p>
 
           <Link
-            href="/home/nominees"
+            href="/home"
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-[#04120b] transition hover:bg-emerald-400"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -316,13 +316,13 @@ export default function DetailsPage({ nomineeId }: DetailsProps) {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden  px-2 py-5 text-white">
       {/* Ambient background */}
-      <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-[130px]" />
+      {/* <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-[130px]" />
       <div className="pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full bg-green-500/[0.07] blur-[140px]" />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:radial-gradient(#a7f3d0_1px,transparent_1px)] [background-size:25px_25px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:radial-gradient(#a7f3d0_1px,transparent_1px)] [background-size:25px_25px]" /> */}
 
       <div className="relative z-10 mx-auto w-full max-w-3xl">
         <Link
-          href="/home"
+          href="/home/nominees"
           className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-gray-300 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300"
         >
           <ArrowLeft className="h-4 w-4" />
